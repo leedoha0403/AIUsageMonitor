@@ -192,7 +192,7 @@ public partial class MainWindow : Window
         return parent;
     }
 
-    private void ShowDashboard()
+    public void ShowDashboard()
     {
         Show();
         WindowState = WindowState.Normal;

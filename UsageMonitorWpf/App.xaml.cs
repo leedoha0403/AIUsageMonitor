@@ -5,11 +5,41 @@ public partial class App : System.Windows.Application
     // Launched by the Windows sign-in entry: start quietly (tray/chips) instead of opening the dashboard.
     public static bool StartedAtSignIn { get; private set; }
 
+    // Fixed GUID-based names so a second launch reliably finds the first instance's mutex/event.
+    private const string MutexName = "Local\\UsageMonitorWpf-SingleInstance-9F1E7B2D-6C3A-4E4A-9E1D-2E9B6D6C1A11";
+    private const string ShowEventName = "Local\\UsageMonitorWpf-ShowDashboard-9F1E7B2D-6C3A-4E4A-9E1D-2E9B6D6C1A11";
+
+    private System.Threading.Mutex? _singleInstanceMutex;
+    private System.Threading.EventWaitHandle? _showEvent;
+    private bool _ownsMutex;
+
     protected override void OnStartup(System.Windows.StartupEventArgs e)
     {
         try
         {
             base.OnStartup(e);
+
+            _singleInstanceMutex = new System.Threading.Mutex(true, MutexName, out var createdNew);
+            _ownsMutex = createdNew;
+            if (!createdNew)
+            {
+                Log("duplicate instance detected; asking the running instance to show itself");
+                try
+                {
+                    using var existingShowEvent = System.Threading.EventWaitHandle.OpenExisting(ShowEventName);
+                    existingShowEvent.Set();
+                }
+                catch (System.Exception ex)
+                {
+                    Log("could not signal running instance: " + ex);
+                }
+                Shutdown();
+                return;
+            }
+
+            _showEvent = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset, ShowEventName);
+            StartShowRequestListener();
+
             StartedAtSignIn = e.Args.Contains(Core.StartupService.StartupArgument, System.StringComparer.OrdinalIgnoreCase);
             Log(StartedAtSignIn ? "startup (sign-in)" : "startup");
             ShutdownMode = System.Windows.ShutdownMode.OnMainWindowClose;
@@ -24,6 +54,41 @@ public partial class App : System.Windows.Application
             System.Windows.MessageBox.Show(ex.ToString(), "Usage Monitor startup error");
             Shutdown(-1);
         }
+    }
+
+    // A later launch that lost the single-instance race sets this event instead of starting its own process.
+    private void StartShowRequestListener()
+    {
+        var showEvent = _showEvent;
+        if (showEvent == null) return;
+        var thread = new System.Threading.Thread(() =>
+        {
+            while (true)
+            {
+                try
+                {
+                    showEvent.WaitOne();
+                }
+                catch (System.ObjectDisposedException)
+                {
+                    return;
+                }
+                Dispatcher.Invoke(() => (MainWindow as MainWindow)?.ShowDashboard());
+            }
+        })
+        {
+            IsBackground = true,
+            Name = "ShowRequestListener"
+        };
+        thread.Start();
+    }
+
+    protected override void OnExit(System.Windows.ExitEventArgs e)
+    {
+        _showEvent?.Dispose();
+        if (_ownsMutex) _singleInstanceMutex?.ReleaseMutex();
+        _singleInstanceMutex?.Dispose();
+        base.OnExit(e);
     }
 
     private static void Log(string message)
