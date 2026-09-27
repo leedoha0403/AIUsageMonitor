@@ -151,7 +151,6 @@ public static class Loc
         ["opt.System"] = ("System", "시스템 설정"),
         ["opt.Light"] = ("Light", "라이트"),
         ["opt.Dark"] = ("Dark", "다크"),
-        ["opt.Cute"] = ("Cute", "귀여운"),
         ["opt.Custom"] = ("Custom", "Custom"),
         ["opt.Remaining"] = ("Remaining", "남은 양"),
         ["opt.Used"] = ("Used", "사용한 양"),

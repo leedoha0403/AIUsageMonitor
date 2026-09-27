@@ -275,7 +275,7 @@ public sealed class MainViewModel : ObservableObject
     public IReadOnlyList<OptionItem> Languages { get; } = Options("Korean", "English");
     public IReadOnlyList<OptionItem> WidgetModes { get; } = Options("Compact", "Normal", "Detailed");
     public IReadOnlyList<OptionItem> WindowVersions { get; } = Options("Mini", "Expanded");
-    public IReadOnlyList<OptionItem> Themes { get; } = Options("System", "Light", "Dark", "Cute", "Custom");
+    public IReadOnlyList<OptionItem> Themes { get; } = Options("System", "Light", "Dark", "Custom");
     public IReadOnlyList<OptionItem> DisplayOptions { get; } = Options("Remaining", "Used");
     public IReadOnlyList<OptionItem> CollectionLevels { get; } = Options(CollectorPolicy.Levels);
     public IReadOnlyList<OptionItem> HistoryRanges { get; } = Options(RangeSpans.Keys.ToArray());

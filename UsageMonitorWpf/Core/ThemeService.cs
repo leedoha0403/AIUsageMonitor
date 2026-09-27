@@ -27,11 +27,6 @@ public static class ThemeService
             Set(custom.Ink, custom.Muted, custom.Accent, custom.Panel, custom.Canvas, custom.Line, custom.Header,
                 custom.HeaderStart, custom.HeaderMiddle, custom.HeaderEnd);
         }
-        else if (effectiveTheme == "Cute")
-        {
-            Set("#3B2630", "#8E6576", "#FF75A6", "#FFF9FC", "#FFF1F7", "#2EFFB8D2", "#8B2C55",
-                "#FFE7F1", "#FFE0A8", "#B9F6E4");
-        }
         else if (IsDark)
         {
             Set("#F4F7F5", "#A9B3BD", "#3FDDB2", "#171B1D", "#101315", "#2A3336", "#F4F7F5",
