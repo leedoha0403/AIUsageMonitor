@@ -74,9 +74,11 @@ public static class UpdateChecker
 
     private static Version? ParseVersion(string text)
     {
+        // .NET appends "+<git-sha>" to InformationalVersion by default, and local dev builds add "-internal";
+        // the numeric version is always the part before the first '-' or '+'.
         var s = text.TrimStart('v', 'V');
-        var dash = s.IndexOf('-');
-        if (dash >= 0) s = s[..dash];
+        var cut = s.IndexOfAny(['-', '+']);
+        if (cut >= 0) s = s[..cut];
         return Version.TryParse(s, out var v) ? v : null;
     }
 
