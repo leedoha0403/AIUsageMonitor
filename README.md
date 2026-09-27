@@ -4,11 +4,14 @@ Claude Code와 Codex의 사용량, 리셋 시간, 데이터 출처, 신뢰도를
 
 ## 실행
 
-WPF 버전은 `Start Usage Monitor WPF.cmd`를 더블클릭하거나 아래 명령으로 실행하세요.
+`Start Usage Monitor WPF.cmd`를 더블클릭하면 Release로 빌드한 뒤 앱을 별도 프로세스로 띄우고 cmd 창은 스스로 닫힙니다. cmd 창을 닫아도 앱은 계속 실행되며, 앱 종료는 트레이 메뉴의 "종료"로 합니다. 이미 실행 중이면 새로 띄우지 않습니다.
 
 ```powershell
-.\.dotnet\dotnet.exe run --project .\UsageMonitorWpf\UsageMonitorWpf.csproj
+dotnet build .\UsageMonitorWpf\UsageMonitorWpf.csproj -c Release
+.\UsageMonitorWpf\bin\Release\net8.0-windows\UsageMonitorWpf.exe
 ```
+
+개발 중에는 `dotnet run --project .\UsageMonitorWpf\UsageMonitorWpf.csproj`로도 실행할 수 있습니다. 다만 이렇게 실행하면 터미널을 닫을 때 앱도 함께 종료됩니다. .NET 8 SDK가 필요하며, 프로젝트 폴더에 `.dotnet`(로컬 SDK)이 있으면 그것을 우선 사용합니다.
 
 PowerShell MVP도 남겨두었습니다.
 
