@@ -15,6 +15,8 @@ namespace UsageMonitorWpf.ViewModels;
 
 public sealed class MainViewModel : ObservableObject
 {
+    private const int SettingsTabIndex = 6;
+
     private static readonly Dictionary<string, TimeSpan> RangeSpans = new()
     {
         ["1H"] = TimeSpan.FromHours(1),
@@ -46,6 +48,15 @@ public sealed class MainViewModel : ObservableObject
     private ProviderViewModel? _selectedAccount;
     private int _selectedTabIndex;
     private string _presetName = "";
+    private bool _isCheckingUpdate;
+    private bool _updateAvailable;
+    private bool _isDownloadingUpdate;
+    private double _updateDownloadProgress;
+    private string _updateStatusText = "";
+    private string _latestUpdateVersion = "";
+    private string _latestReleaseUrl = "";
+    private UpdateAsset? _updateZipAsset;
+    private UpdateAsset? _updateChecksumsAsset;
 
     public MainViewModel(StateStore store)
     {
@@ -82,6 +93,9 @@ public sealed class MainViewModel : ObservableObject
         OpenOpenSourceLicensesCommand = new RelayCommand(() => ShowLegalDocument("THIRD-PARTY-NOTICES.md", Loc.T("ui.openSourceLicenses"), Loc.T("ui.thirdPartyDialogDesc")));
         OpenRepositoryCommand = new RelayCommand(() => OpenUrl(RepositoryUrl));
         ReportIssueCommand = new RelayCommand(() => OpenUrl(IssueUrl));
+        CheckForUpdateCommand = new RelayCommand(() => _ = CheckForUpdateAsync(manual: true));
+        DownloadUpdateCommand = new RelayCommand(() => _ = DownloadUpdateAsync());
+        OpenReleaseNotesCommand = new RelayCommand(() => OpenUrl(_latestReleaseUrl));
         _loginTimer.Tick += (_, _) => CheckLoginWatches();
         OpenScheduleCommand = new ParamCommand(p => { if (p is ProviderViewModel vm) OpenSchedule(vm); });
         ToggleNotifyCommand = new ParamCommand(p => { if (p is ProviderViewModel vm) vm.NotifyOnReset = !vm.NotifyOnReset; });
@@ -105,6 +119,10 @@ public sealed class MainViewModel : ObservableObject
         var firstTick = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         firstTick.Tick += (_, _) => { firstTick.Stop(); _ = _scheduler.TickAsync(DateTimeOffset.Now); };
         firstTick.Start();
+        // Update check waits a bit longer so it never competes with startup usage collection.
+        var updateTick = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+        updateTick.Tick += (_, _) => { updateTick.Stop(); _ = CheckForUpdateAsync(manual: false); };
+        updateTick.Start();
         Microsoft.Win32.SystemEvents.PowerModeChanged += OnPowerModeChanged;
         Loc.Apply(_language);
         ThemeService.Apply(Theme, State.Settings.CustomTheme);
@@ -240,6 +258,95 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    private async Task CheckForUpdateAsync(bool manual)
+    {
+        if (IsCheckingUpdate || IsDownloadingUpdate) return;
+        IsCheckingUpdate = true;
+        if (manual) UpdateStatusText = Loc.T("ui.checkingUpdate");
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(15));
+            var release = await UpdateChecker.FetchLatestAsync(cts.Token);
+            if (release is null)
+            {
+                if (manual) UpdateStatusText = Loc.T("ui.updateCheckFailed");
+                return;
+            }
+
+            var currentVersion = InternalVersion.Replace("-internal", "", StringComparison.OrdinalIgnoreCase);
+            if (!UpdateChecker.IsNewer(release.TagName, currentVersion))
+            {
+                UpdateAvailable = false;
+                if (manual) UpdateStatusText = Loc.T("ui.upToDate");
+                return;
+            }
+
+            _updateZipAsset = release.FindZip();
+            _updateChecksumsAsset = release.FindChecksums();
+            _latestReleaseUrl = release.HtmlUrl;
+            LatestUpdateVersion = release.TagName;
+            OnPropertyChanged(nameof(UpdateAvailableText));
+
+            if (_updateZipAsset is null)
+            {
+                UpdateAvailable = false;
+                if (manual) UpdateStatusText = Loc.T("ui.updateNoAsset");
+                return;
+            }
+
+            UpdateAvailable = true;
+            UpdateStatusText = "";
+            if (!manual)
+            {
+                NotificationRequested?.Invoke(
+                    Loc.T("mv.updateAvailableTitle", release.TagName),
+                    Loc.T("mv.updateAvailableBody"),
+                    () => SelectedTabIndex = SettingsTabIndex);
+            }
+        }
+        finally
+        {
+            IsCheckingUpdate = false;
+        }
+    }
+
+    private async Task DownloadUpdateAsync()
+    {
+        if (_updateZipAsset is null || IsDownloadingUpdate) return;
+        IsDownloadingUpdate = true;
+        UpdateDownloadProgress = 0;
+        UpdateStatusText = "";
+        try
+        {
+            var destination = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Downloads");
+            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(10));
+            var progress = new Progress<double>(p => UpdateDownloadProgress = p);
+            var path = await UpdateChecker.DownloadAssetAsync(_updateZipAsset, destination, progress, cts.Token);
+
+            if (_updateChecksumsAsset is not null)
+            {
+                var sums = await UpdateChecker.FetchTextAsync(_updateChecksumsAsset.BrowserDownloadUrl, cts.Token);
+                if (sums is not null && !UpdateChecker.VerifyChecksum(sums, _updateZipAsset.Name, path))
+                {
+                    File.Delete(path);
+                    UpdateStatusText = Loc.T("ui.updateChecksumFailed");
+                    return;
+                }
+            }
+
+            UpdateStatusText = Loc.T("ui.updateDownloaded");
+            Process.Start(new ProcessStartInfo("explorer.exe", $"/select,\"{path}\"") { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            UpdateStatusText = Loc.T("ui.updateDownloadFailed", ex.Message);
+        }
+        finally
+        {
+            IsDownloadingUpdate = false;
+        }
+    }
+
     private void OnRefreshStateChanged()
     {
         SaveStateOnly();
@@ -302,6 +409,9 @@ public sealed class MainViewModel : ObservableObject
     public ICommand OpenOpenSourceLicensesCommand { get; }
     public ICommand OpenRepositoryCommand { get; }
     public ICommand ReportIssueCommand { get; }
+    public ICommand CheckForUpdateCommand { get; }
+    public ICommand DownloadUpdateCommand { get; }
+    public ICommand OpenReleaseNotesCommand { get; }
 
     public ProviderViewModel? SelectedAccount
     {
@@ -323,6 +433,20 @@ public sealed class MainViewModel : ObservableObject
         .InformationalVersion ?? "0.0.0-internal";
     public string RuntimeVersion => Environment.Version.ToString();
     public string StateSchemaVersion => $"v{new AppState().SchemaVersion}";
+
+    public bool IsCheckingUpdate { get => _isCheckingUpdate; private set => Set(ref _isCheckingUpdate, value); }
+    public bool UpdateAvailable { get => _updateAvailable; private set => Set(ref _updateAvailable, value); }
+    public bool IsDownloadingUpdate { get => _isDownloadingUpdate; private set => Set(ref _isDownloadingUpdate, value); }
+    public string UpdateStatusText { get => _updateStatusText; private set => Set(ref _updateStatusText, value); }
+    public string LatestUpdateVersion { get => _latestUpdateVersion; private set => Set(ref _latestUpdateVersion, value); }
+    public string UpdateAvailableText => Loc.T("ui.updateAvailable", LatestUpdateVersion);
+
+    public double UpdateDownloadProgress
+    {
+        get => _updateDownloadProgress;
+        private set { Set(ref _updateDownloadProgress, value); OnPropertyChanged(nameof(UpdateDownloadProgressText)); }
+    }
+    public string UpdateDownloadProgressText => Loc.T("ui.downloadingUpdate", (int)Math.Round(UpdateDownloadProgress * 100));
 
     public string Language
     {
