@@ -320,7 +320,7 @@ public sealed class RefreshScheduler
     // A window is running if the provider says so, or if our own refresh started one less than 5H ago
     // (a greeting can still read as 0% used, which would otherwise look like an idle window).
     private static bool WindowActive(UsageProviderState account, AccountRefresh r, DateTimeOffset now) =>
-        SessionWindow.IsActive(account, now) || (r.LastSuccessAt is { } ok && now < ok + SessionWindow.Length);
+        SessionWindow.IsActive(account, r, now);
 
     private static DateTimeOffset RenewableAt(UsageProviderState account, AccountRefresh r, DateTimeOffset now)
     {

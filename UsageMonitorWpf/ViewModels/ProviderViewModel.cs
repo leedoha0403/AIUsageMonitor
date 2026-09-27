@@ -209,7 +209,7 @@ public sealed class ProviderViewModel : ObservableObject
     public static int RetryMaxForDisplay { get; set; } = 3;
 
     public AccountRefresh Refresh => _state.Refresh;
-    private bool WindowActive => !IsSignedOut && SessionWindow.IsActive(_state, DateTimeOffset.Now);
+    private bool WindowActive => !IsSignedOut && SessionWindow.IsActive(_state, _state.Refresh, DateTimeOffset.Now);
     public string NextRenewTime => IsSignedOut ? "-" : WindowActive ? ShortTime(_state.SessionResetAt) : Loc.T("rf.renewableNow");
     public string NextRenewCountdown => WindowActive ? Countdown : "";
 
