@@ -1,0 +1,70 @@
+<Window x:Class="UsageMonitorWpf.ChipsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:conv="clr-namespace:UsageMonitorWpf.Converters"
+        Title="Usage Chips"
+        SizeToContent="WidthAndHeight"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        ShowInTaskbar="False"
+        ShowActivated="False"
+        Topmost="True"
+        Background="Transparent"
+        FontFamily="{StaticResource AppFont}"
+        TextElement.Foreground="{DynamicResource InkBrush}"
+        AllowsTransparency="True">
+    <Window.Resources>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+    </Window.Resources>
+    <Border CornerRadius="7"
+            Background="{DynamicResource PanelBrush}"
+            BorderBrush="{DynamicResource LineBrush}"
+            BorderThickness="1"
+            Padding="4,3"
+            MouseLeftButtonDown="Chips_MouseLeftButtonDown"
+            ToolTip="{Binding StatusSummary}">
+        <Border.ContextMenu>
+            <ContextMenu>
+                <MenuItem Header="{DynamicResource ui.openDashboard}" Click="OpenDashboard_Click" />
+                <MenuItem Header="{DynamicResource ui.refresh}" Command="{Binding RefreshCommand}" />
+                <Separator />
+                <MenuItem StaysOpenOnClick="True">
+                    <MenuItem.Header>
+                        <StackPanel Width="190">
+                            <DockPanel>
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding WidgetOpacityText}" />
+                                <TextBlock Text="{DynamicResource ui.opacity}" />
+                            </DockPanel>
+                            <Slider Minimum="0.2" Maximum="1" SmallChange="0.05" LargeChange="0.1" TickFrequency="0.05" IsSnapToTickEnabled="True"
+                                    Value="{Binding WidgetOpacity}" Margin="0,4,0,0" />
+                        </StackPanel>
+                    </MenuItem.Header>
+                </MenuItem>
+                <Separator />
+                <MenuItem Header="{DynamicResource ui.hideChips}" Click="HideChips_Click" />
+            </ContextMenu>
+        </Border.ContextMenu>
+        <ItemsControl ItemsSource="{Binding MiniProviders}">
+            <ItemsControl.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <StackPanel Orientation="Horizontal" />
+                </ItemsPanelTemplate>
+            </ItemsControl.ItemsPanel>
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border CornerRadius="5" Padding="7,2" Margin="1,0" Background="{DynamicResource CanvasBrush}">
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="7" Height="7" Fill="{Binding AccentBrush}" Margin="0,0,5,0" VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding ChipRemainingText}" FontSize="12" FontWeight="SemiBold"
+                                       Visibility="{Binding DataContext.ShowRemaining, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}" />
+                            <TextBlock Text="{Binding ChipUsedText}" FontSize="12" FontWeight="SemiBold"
+                                       Visibility="{Binding DataContext.ShowRemaining, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
+                            <TextBlock Text="{Binding ChipCountdown}" FontSize="11" Foreground="{DynamicResource MutedBrush}" Margin="6,0,0,0" VerticalAlignment="Center"
+                                       Visibility="{Binding HasUsage, Converter={StaticResource BoolToVisibility}}" />
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+    </Border>
+</Window>

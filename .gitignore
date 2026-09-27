@@ -1,0 +1,14 @@
+# Local .NET SDK installed by dotnet-install.ps1
+.dotnet/
+dotnet-install.ps1
+
+# Build output
+bin/
+obj/
+dist/
+*.user
+.vs/
+
+# Local app data (fallback data folders next to the app)
+.usage-monitor/
+.usage-mini/
