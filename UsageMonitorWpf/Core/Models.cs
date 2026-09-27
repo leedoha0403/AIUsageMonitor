@@ -37,6 +37,7 @@ public sealed class AppSettings
     public bool ShowTaskbarChips { get; set; } = true;
     public string HistoryRange { get; set; } = "1D";
     public double WidgetOpacity { get; set; } = 1.0;
+    public double ChipsOpacity { get; set; } = 1.0;
     public bool HoverOpaque { get; set; } = true;
     public CustomThemeSettings CustomTheme { get; set; } = new();
     public List<CustomThemePreset> CustomThemePresets { get; set; } = new();

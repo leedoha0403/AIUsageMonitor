@@ -809,6 +809,7 @@
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
                                     <TextBlock Text="{DynamicResource ui.runAtStartup}" VerticalAlignment="Center" FontWeight="SemiBold" />
                                     <CheckBox Grid.Column="1" IsChecked="{Binding RunAtStartup}" VerticalAlignment="Center" />
@@ -831,47 +832,59 @@
                                     <ComboBox Grid.Row="9" Grid.Column="1" ItemsSource="{Binding Themes}" SelectedValuePath="Value" SelectedValue="{Binding Theme}" Margin="0,0,0,10" />
                                     <StackPanel Grid.Row="10" Grid.ColumnSpan="2" Margin="0,0,0,12"
                                                 Visibility="{Binding IsCustomTheme, Converter={StaticResource BoolToVisibility}}">
-                                        <TextBlock Text="{DynamicResource ui.customThemeDesc}" Style="{StaticResource Muted}" FontSize="12" Margin="0,0,0,8" />
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBlock Grid.Column="0" Text="{DynamicResource ui.customThemeDesc}" Style="{StaticResource Muted}" FontSize="12"
+                                                       VerticalAlignment="Center" TextWrapping="Wrap" Margin="0,0,8,0" />
+                                            <!-- Fixed colors on purpose: this button previews live custom-theme edits everywhere else via
+                                                 DynamicResource, so if it used theme brushes too, a bad color combo could hide the one
+                                                 control that undoes it. -->
+                                            <Button Grid.Column="1" Content="{DynamicResource ui.resetCustomTheme}" Command="{Binding ResetCustomThemeCommand}"
+                                                    Background="#FFFFFF" Foreground="#15191D" BorderBrush="#15191D" />
+                                        </Grid>
                                         <UniformGrid Columns="2">
-                                            <StackPanel Margin="0,0,12,8">
-                                                <TextBlock Text="{DynamicResource ui.customInk}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
-                                                <TextBox Text="{Binding CustomInk, UpdateSourceTrigger=LostFocus}" />
+                                            <StackPanel Margin="0,0,12,10" Orientation="Horizontal">
+                                                <controls:ColorPickerButton Color="{Binding CustomInk, Mode=TwoWay}" PreviewResourceKey="InkBrush" Margin="0,0,10,0" />
+                                                <TextBlock Text="{DynamicResource ui.customInk}" Foreground="{DynamicResource MutedBrush}" FontSize="12" VerticalAlignment="Center" />
                                             </StackPanel>
-                                            <StackPanel Margin="0,0,0,8">
-                                                <TextBlock Text="{DynamicResource ui.customMuted}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
-                                                <TextBox Text="{Binding CustomMuted, UpdateSourceTrigger=LostFocus}" />
+                                            <StackPanel Margin="0,0,0,10" Orientation="Horizontal">
+                                                <controls:ColorPickerButton Color="{Binding CustomMuted, Mode=TwoWay}" PreviewResourceKey="MutedBrush" Margin="0,0,10,0" />
+                                                <TextBlock Text="{DynamicResource ui.customMuted}" Foreground="{DynamicResource MutedBrush}" FontSize="12" VerticalAlignment="Center" />
                                             </StackPanel>
-                                            <StackPanel Margin="0,0,12,8">
-                                                <TextBlock Text="{DynamicResource ui.customAccent}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
-                                                <TextBox Text="{Binding CustomAccent, UpdateSourceTrigger=LostFocus}" />
+                                            <StackPanel Margin="0,0,12,10" Orientation="Horizontal">
+                                                <controls:ColorPickerButton Color="{Binding CustomAccent, Mode=TwoWay}" PreviewResourceKey="AccentBrush" Margin="0,0,10,0" />
+                                                <TextBlock Text="{DynamicResource ui.customAccent}" Foreground="{DynamicResource MutedBrush}" FontSize="12" VerticalAlignment="Center" />
                                             </StackPanel>
-                                            <StackPanel Margin="0,0,0,8">
-                                                <TextBlock Text="{DynamicResource ui.customPanel}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
-                                                <TextBox Text="{Binding CustomPanel, UpdateSourceTrigger=LostFocus}" />
+                                            <StackPanel Margin="0,0,0,10" Orientation="Horizontal">
+                                                <controls:ColorPickerButton Color="{Binding CustomPanel, Mode=TwoWay}" PreviewResourceKey="PanelBrush" Margin="0,0,10,0" />
+                                                <TextBlock Text="{DynamicResource ui.customPanel}" Foreground="{DynamicResource MutedBrush}" FontSize="12" VerticalAlignment="Center" />
                                             </StackPanel>
-                                            <StackPanel Margin="0,0,12,8">
-                                                <TextBlock Text="{DynamicResource ui.customCanvas}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
-                                                <TextBox Text="{Binding CustomCanvas, UpdateSourceTrigger=LostFocus}" />
+                                            <StackPanel Margin="0,0,12,10" Orientation="Horizontal">
+                                                <controls:ColorPickerButton Color="{Binding CustomCanvas, Mode=TwoWay}" PreviewResourceKey="CanvasBrush" Margin="0,0,10,0" />
+                                                <TextBlock Text="{DynamicResource ui.customCanvas}" Foreground="{DynamicResource MutedBrush}" FontSize="12" VerticalAlignment="Center" />
                                             </StackPanel>
-                                            <StackPanel Margin="0,0,0,8">
-                                                <TextBlock Text="{DynamicResource ui.customLine}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
-                                                <TextBox Text="{Binding CustomLine, UpdateSourceTrigger=LostFocus}" />
+                                            <StackPanel Margin="0,0,0,10" Orientation="Horizontal">
+                                                <controls:ColorPickerButton Color="{Binding CustomLine, Mode=TwoWay}" PreviewResourceKey="LineBrush" Margin="0,0,10,0" />
+                                                <TextBlock Text="{DynamicResource ui.customLine}" Foreground="{DynamicResource MutedBrush}" FontSize="12" VerticalAlignment="Center" />
                                             </StackPanel>
-                                            <StackPanel Margin="0,0,12,8">
-                                                <TextBlock Text="{DynamicResource ui.customHeader}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
-                                                <TextBox Text="{Binding CustomHeader, UpdateSourceTrigger=LostFocus}" />
+                                            <StackPanel Margin="0,0,12,10" Orientation="Horizontal">
+                                                <controls:ColorPickerButton Color="{Binding CustomHeader, Mode=TwoWay}" PreviewResourceKey="HeaderBrush" Margin="0,0,10,0" />
+                                                <TextBlock Text="{DynamicResource ui.customHeader}" Foreground="{DynamicResource MutedBrush}" FontSize="12" VerticalAlignment="Center" />
                                             </StackPanel>
-                                            <StackPanel Margin="0,0,0,8">
-                                                <TextBlock Text="{DynamicResource ui.customHeaderStart}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
-                                                <TextBox Text="{Binding CustomHeaderStart, UpdateSourceTrigger=LostFocus}" />
+                                            <StackPanel Margin="0,0,0,10" Orientation="Horizontal">
+                                                <controls:ColorPickerButton Color="{Binding CustomHeaderStart, Mode=TwoWay}" PreviewResourceKey="HeaderStartColor" Margin="0,0,10,0" />
+                                                <TextBlock Text="{DynamicResource ui.customHeaderStart}" Foreground="{DynamicResource MutedBrush}" FontSize="12" VerticalAlignment="Center" />
                                             </StackPanel>
-                                            <StackPanel Margin="0,0,12,0">
-                                                <TextBlock Text="{DynamicResource ui.customHeaderMiddle}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
-                                                <TextBox Text="{Binding CustomHeaderMiddle, UpdateSourceTrigger=LostFocus}" />
+                                            <StackPanel Margin="0,0,12,0" Orientation="Horizontal">
+                                                <controls:ColorPickerButton Color="{Binding CustomHeaderMiddle, Mode=TwoWay}" PreviewResourceKey="HeaderMiddleColor" Margin="0,0,10,0" />
+                                                <TextBlock Text="{DynamicResource ui.customHeaderMiddle}" Foreground="{DynamicResource MutedBrush}" FontSize="12" VerticalAlignment="Center" />
                                             </StackPanel>
-                                            <StackPanel>
-                                                <TextBlock Text="{DynamicResource ui.customHeaderEnd}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
-                                                <TextBox Text="{Binding CustomHeaderEnd, UpdateSourceTrigger=LostFocus}" />
+                                            <StackPanel Orientation="Horizontal">
+                                                <controls:ColorPickerButton Color="{Binding CustomHeaderEnd, Mode=TwoWay}" PreviewResourceKey="HeaderEndColor" Margin="0,0,10,0" />
+                                                <TextBlock Text="{DynamicResource ui.customHeaderEnd}" Foreground="{DynamicResource MutedBrush}" FontSize="12" VerticalAlignment="Center" />
                                             </StackPanel>
                                         </UniformGrid>
                                         <TextBlock Text="{DynamicResource ui.presets}" Style="{StaticResource Muted}" FontSize="12" Margin="0,12,0,6" />
@@ -915,8 +928,18 @@
                                     <CheckBox Grid.Row="13" Grid.Column="1" IsChecked="{Binding ShowTaskbarChips}" VerticalAlignment="Center" Margin="0,0,0,10" />
                                     <TextBlock Grid.Row="14" Text="{DynamicResource ui.alwaysOnTop}" VerticalAlignment="Center" />
                                     <CheckBox Grid.Row="14" Grid.Column="1" IsChecked="{Binding AlwaysOnTop}" VerticalAlignment="Center" Margin="0,0,0,10" />
-                                    <TextBlock Grid.Row="15" Text="{DynamicResource ui.widgetOpacity}" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Row="15" Text="{DynamicResource ui.chipsOpacity}" VerticalAlignment="Center" />
                                     <Grid Grid.Row="15" Grid.Column="1" Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="48" />
+                                        </Grid.ColumnDefinitions>
+                                        <Slider Minimum="0.2" Maximum="1" SmallChange="0.05" LargeChange="0.1" TickFrequency="0.05" IsSnapToTickEnabled="True"
+                                                Value="{Binding ChipsOpacity}" VerticalAlignment="Center" />
+                                        <TextBlock Grid.Column="1" Text="{Binding ChipsOpacityText}" TextAlignment="Right" VerticalAlignment="Center" />
+                                    </Grid>
+                                    <TextBlock Grid.Row="16" Text="{DynamicResource ui.widgetOpacity}" VerticalAlignment="Center" />
+                                    <Grid Grid.Row="16" Grid.Column="1" Margin="0,0,0,10">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="48" />
@@ -925,14 +948,14 @@
                                                 Value="{Binding WidgetOpacity}" VerticalAlignment="Center" />
                                         <TextBlock Grid.Column="1" Text="{Binding WidgetOpacityText}" TextAlignment="Right" VerticalAlignment="Center" />
                                     </Grid>
-                                    <TextBlock Grid.Row="16" Text="{DynamicResource ui.hoverOpaque}" VerticalAlignment="Center" />
-                                    <CheckBox Grid.Row="16" Grid.Column="1" IsChecked="{Binding HoverOpaque}" VerticalAlignment="Center" Margin="0,0,0,10" />
-                                    <TextBlock Grid.Row="17" Text="{DynamicResource ui.internalVersion}" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Row="17" Grid.Column="1" Text="{Binding InternalVersion}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,0,10" />
-                                    <TextBlock Grid.Row="18" Text="{DynamicResource ui.stateSchema}" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Row="18" Grid.Column="1" Text="{Binding StateSchemaVersion}" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center" Margin="0,0,0,10" />
-                                    <TextBlock Grid.Row="19" Grid.ColumnSpan="2" Style="{StaticResource Muted}"><Run Text="{DynamicResource ui.dataDirectory}" /><Run Text="{Binding DataDirectory, Mode=OneWay}" /></TextBlock>
-                                    <TextBlock Grid.Row="20" Grid.ColumnSpan="2" Text="{Binding FetchWarning}" Style="{StaticResource Muted}" Margin="0,10,0,0" />
+                                    <TextBlock Grid.Row="17" Text="{DynamicResource ui.hoverOpaque}" VerticalAlignment="Center" />
+                                    <CheckBox Grid.Row="17" Grid.Column="1" IsChecked="{Binding HoverOpaque}" VerticalAlignment="Center" Margin="0,0,0,10" />
+                                    <TextBlock Grid.Row="18" Text="{DynamicResource ui.internalVersion}" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Row="18" Grid.Column="1" Text="{Binding InternalVersion}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,0,10" />
+                                    <TextBlock Grid.Row="19" Text="{DynamicResource ui.stateSchema}" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Row="19" Grid.Column="1" Text="{Binding StateSchemaVersion}" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center" Margin="0,0,0,10" />
+                                    <TextBlock Grid.Row="20" Grid.ColumnSpan="2" Style="{StaticResource Muted}"><Run Text="{DynamicResource ui.dataDirectory}" /><Run Text="{Binding DataDirectory, Mode=OneWay}" /></TextBlock>
+                                    <TextBlock Grid.Row="21" Grid.ColumnSpan="2" Text="{Binding FetchWarning}" Style="{StaticResource Muted}" Margin="0,10,0,0" />
                                 </Grid>
                             </Border>
                             <Border Style="{StaticResource Card}" MaxWidth="620" HorizontalAlignment="Left">

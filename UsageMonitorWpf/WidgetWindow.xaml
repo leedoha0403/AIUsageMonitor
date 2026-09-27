@@ -49,6 +49,7 @@
                 <MenuItem Header="{DynamicResource ui.hoverOpaque}" IsCheckable="True" IsChecked="{Binding HoverOpaque}" />
                 <Separator />
                 <MenuItem Header="{DynamicResource ui.hide}" Click="Hide_Click" />
+                <MenuItem Header="{DynamicResource ui.exit}" Click="Exit_Click" />
             </ContextMenu>
         </Border.ContextMenu>
         <StackPanel>

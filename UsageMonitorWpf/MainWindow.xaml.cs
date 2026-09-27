@@ -20,8 +20,8 @@ public partial class MainWindow : Window
         InitializeComponent();
         _viewModel = new MainViewModel(new StateStore());
         DataContext = _viewModel;
-        _widgetWindow = new WidgetWindow(_viewModel, ShowDashboard);
-        _chipsWindow = new ChipsWindow(_viewModel, ToggleFlyout, ShowDashboard);
+        _widgetWindow = new WidgetWindow(_viewModel, ShowDashboard, ExitApplication);
+        _chipsWindow = new ChipsWindow(_viewModel, ToggleFlyout, ShowDashboard, ExitApplication);
         _viewModel.PropertyChanged += ViewModelOnPropertyChanged;
         _viewModel.NotificationRequested += ShowNotification;
 

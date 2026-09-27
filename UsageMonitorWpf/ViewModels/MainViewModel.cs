@@ -85,6 +85,7 @@ public sealed class MainViewModel : ObservableObject
         _loginTimer.Tick += (_, _) => CheckLoginWatches();
         OpenScheduleCommand = new ParamCommand(p => { if (p is ProviderViewModel vm) OpenSchedule(vm); });
         ToggleNotifyCommand = new ParamCommand(p => { if (p is ProviderViewModel vm) vm.NotifyOnReset = !vm.NotifyOnReset; });
+        ResetCustomThemeCommand = new RelayCommand(ResetCustomTheme);
         SaveThemePresetCommand = new RelayCommand(SaveThemePreset);
         ApplyThemePresetCommand = new ParamCommand(p => { if (p is CustomThemePreset preset) ApplyThemePreset(preset); });
         DeleteThemePresetCommand = new ParamCommand(p => { if (p is CustomThemePreset preset) DeleteThemePreset(preset); });
@@ -293,6 +294,7 @@ public sealed class MainViewModel : ObservableObject
     public ICommand ClearFolderCommand { get; }
     public ICommand OpenAccountCommand { get; }
     public ICommand ShowInOverviewCommand { get; }
+    public ICommand ResetCustomThemeCommand { get; }
     public ICommand SaveThemePresetCommand { get; }
     public ICommand ApplyThemePresetCommand { get; }
     public ICommand DeleteThemePresetCommand { get; }
@@ -488,6 +490,22 @@ public sealed class MainViewModel : ObservableObject
     }
 
     public string WidgetOpacityText => $"{WidgetOpacity * 100:0}%";
+
+    public double ChipsOpacity
+    {
+        get => State.Settings.ChipsOpacity;
+        set
+        {
+            var clamped = Math.Round(Math.Clamp(value, 0.2, 1.0), 2);
+            if (Math.Abs(State.Settings.ChipsOpacity - clamped) < 0.001) return;
+            State.Settings.ChipsOpacity = clamped;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ChipsOpacityText));
+            SaveStateOnly();
+        }
+    }
+
+    public string ChipsOpacityText => $"{ChipsOpacity * 100:0}%";
 
     public bool HoverOpaque
     {
@@ -989,9 +1007,13 @@ public sealed class MainViewModel : ObservableObject
         SaveStateOnly();
     }
 
-    private void ApplyThemePreset(CustomThemePreset preset)
+    private void ApplyThemePreset(CustomThemePreset preset) => ApplyCustomTheme(preset.Theme.Clone());
+
+    private void ResetCustomTheme() => ApplyCustomTheme(new CustomThemeSettings());
+
+    private void ApplyCustomTheme(CustomThemeSettings theme)
     {
-        State.Settings.CustomTheme = preset.Theme.Clone();
+        State.Settings.CustomTheme = theme;
         OnPropertyChanged(nameof(CustomInk));
         OnPropertyChanged(nameof(CustomMuted));
         OnPropertyChanged(nameof(CustomAccent));

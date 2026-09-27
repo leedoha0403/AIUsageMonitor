@@ -1,0 +1,76 @@
+<UserControl x:Class="UsageMonitorWpf.Controls.ColorPickerButton"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:UsageMonitorWpf.Controls"
+             x:Name="Root">
+    <Grid>
+        <ToggleButton x:Name="Toggle" Width="40" Height="32" Padding="4" Cursor="Hand"
+                      IsChecked="{Binding IsOpen, ElementName=Pop, Mode=TwoWay}">
+            <ToggleButton.Template>
+                <ControlTemplate TargetType="ToggleButton">
+                    <Border CornerRadius="7" BorderThickness="1" BorderBrush="{DynamicResource LineBrush}"
+                            Background="{DynamicResource PanelBrush}" Padding="{TemplateBinding Padding}">
+                        <ContentPresenter />
+                    </Border>
+                </ControlTemplate>
+            </ToggleButton.Template>
+            <Border x:Name="SwatchFill" CornerRadius="4" />
+        </ToggleButton>
+
+        <Popup x:Name="Pop" PlacementTarget="{Binding ElementName=Toggle}" Placement="Bottom"
+               StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade"
+               Opened="OnPopupOpened" Closed="OnPopupClosed">
+            <Border Background="{DynamicResource PanelBrush}" BorderBrush="{DynamicResource LineBrush}"
+                    BorderThickness="1" CornerRadius="10" Padding="12" Margin="0,4,0,0" Width="234">
+                <Border.Effect>
+                    <DropShadowEffect Color="#000000" BlurRadius="18" ShadowDepth="4" Opacity="0.25" />
+                </Border.Effect>
+                <StackPanel>
+                    <ItemsControl ItemsSource="{Binding Palette, ElementName=Root}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="12" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Width="15" Height="15" Margin="1.5" CornerRadius="7.5" Cursor="Hand"
+                                        Background="{Binding}" BorderThickness="1" BorderBrush="#22000000"
+                                        Tag="{Binding}" MouseLeftButtonDown="OnSwatchPick"
+                                        MouseEnter="OnSwatchPreviewEnter" MouseLeave="OnSwatchPreviewLeave" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock Text="{DynamicResource ui.customColors}" Foreground="{DynamicResource MutedBrush}" FontSize="11" Margin="0,10,0,4" />
+                    <ItemsControl ItemsSource="{x:Static local:ColorPickerButton.RecentColors}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Width="15" Height="15" Margin="1.5" CornerRadius="7.5" Cursor="Hand"
+                                        Background="{Binding}" BorderThickness="1" BorderBrush="#22000000"
+                                        Tag="{Binding}" MouseLeftButtonDown="OnSwatchPick"
+                                        MouseEnter="OnSwatchPreviewEnter" MouseLeave="OnSwatchPreviewLeave" />
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <Grid Margin="0,10,0,0">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox x:Name="HexBox" Grid.Column="0" Margin="0,0,6,0"
+                                 LostFocus="OnHexBoxLostFocus" KeyDown="OnHexBoxKeyDown" />
+                        <Button Grid.Column="1" Content="{DynamicResource ui.addCustomColor}"
+                                Style="{StaticResource GhostButton}" Padding="8,6" Click="OnAddRecent" />
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Popup>
+    </Grid>
+</UserControl>

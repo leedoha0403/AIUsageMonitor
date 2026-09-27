@@ -16,16 +16,18 @@ public partial class ChipsWindow : Window
     private readonly MainViewModel _viewModel;
     private readonly Action _toggleFlyout;
     private readonly Action _openDashboard;
+    private readonly Action _exitApp;
     private readonly DispatcherTimer _topmostTimer = new() { Interval = TimeSpan.FromSeconds(3) };
 
-    public ChipsWindow(MainViewModel viewModel, Action toggleFlyout, Action openDashboard)
+    public ChipsWindow(MainViewModel viewModel, Action toggleFlyout, Action openDashboard, Action exitApp)
     {
         InitializeComponent();
         DataContext = viewModel;
         _viewModel = viewModel;
         _toggleFlyout = toggleFlyout;
         _openDashboard = openDashboard;
-        WindowOpacity.Attach(this, viewModel);
+        _exitApp = exitApp;
+        WindowOpacity.AttachChips(this, viewModel);
         SizeChanged += (_, _) => { if (!_viewModel.State.ChipsLeft.HasValue) PlaceDefault(); };
         // The taskbar raises itself over topmost windows when clicked; re-assert our z-order.
         _topmostTimer.Tick += (_, _) =>
@@ -91,6 +93,8 @@ public partial class ChipsWindow : Window
         _viewModel.ShowTaskbarChips = false;
         Hide();
     }
+
+    private void Exit_Click(object sender, RoutedEventArgs e) => _exitApp();
 
     [DllImport("user32.dll")]
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);

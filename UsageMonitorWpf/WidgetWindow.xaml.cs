@@ -28,6 +28,7 @@ public partial class WidgetWindow : Window
     private static readonly Duration SlideDuration = new(TimeSpan.FromMilliseconds(220));
 
     private readonly Action _openDashboard;
+    private readonly Action _exitApp;
     private readonly MainViewModel _viewModel;
     private readonly HandleWindow _handle = new();
     private readonly DispatcherTimer _hideTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
@@ -41,12 +42,13 @@ public partial class WidgetWindow : Window
     private System.Windows.Point _dragStartCursor;
     private System.Windows.Point _dragStartWindow;
 
-    public WidgetWindow(MainViewModel viewModel, Action openDashboard)
+    public WidgetWindow(MainViewModel viewModel, Action openDashboard, Action exitApp)
     {
         InitializeComponent();
         DataContext = viewModel;
         _viewModel = viewModel;
         _openDashboard = openDashboard;
+        _exitApp = exitApp;
         WindowOpacity.Attach(this, viewModel);
         _edge = Enum.TryParse<DockEdge>(viewModel.State.WidgetDockEdge, out var edge) ? edge : DockEdge.None;
         _folded = _edge != DockEdge.None && viewModel.State.WidgetFolded;
@@ -422,6 +424,11 @@ public partial class WidgetWindow : Window
     private void Hide_Click(object sender, RoutedEventArgs e)
     {
         HideWidget();
+    }
+
+    private void Exit_Click(object sender, RoutedEventArgs e)
+    {
+        _exitApp();
     }
 
     [StructLayout(LayoutKind.Sequential)]

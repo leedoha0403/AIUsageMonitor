@@ -32,16 +32,17 @@
                     <MenuItem.Header>
                         <StackPanel Width="190">
                             <DockPanel>
-                                <TextBlock DockPanel.Dock="Right" Text="{Binding WidgetOpacityText}" />
+                                <TextBlock DockPanel.Dock="Right" Text="{Binding ChipsOpacityText}" />
                                 <TextBlock Text="{DynamicResource ui.opacity}" />
                             </DockPanel>
                             <Slider Minimum="0.2" Maximum="1" SmallChange="0.05" LargeChange="0.1" TickFrequency="0.05" IsSnapToTickEnabled="True"
-                                    Value="{Binding WidgetOpacity}" Margin="0,4,0,0" />
+                                    Value="{Binding ChipsOpacity}" Margin="0,4,0,0" />
                         </StackPanel>
                     </MenuItem.Header>
                 </MenuItem>
                 <Separator />
                 <MenuItem Header="{DynamicResource ui.hideChips}" Click="HideChips_Click" />
+                <MenuItem Header="{DynamicResource ui.exit}" Click="Exit_Click" />
             </ContextMenu>
         </Border.ContextMenu>
         <ItemsControl ItemsSource="{Binding MiniProviders}">

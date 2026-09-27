@@ -4,19 +4,25 @@ using UsageMonitorWpf.ViewModels;
 
 namespace UsageMonitorWpf;
 
-// Applies the mini-mode opacity setting to a window; optionally turns fully opaque while hovered.
+// Applies a mini-mode opacity setting to a window; optionally turns fully opaque while hovered.
 public static class WindowOpacity
 {
-    public static void Attach(Window window, MainViewModel viewModel)
+    public static void Attach(Window window, MainViewModel viewModel) =>
+        Attach(window, viewModel, () => viewModel.WidgetOpacity, nameof(MainViewModel.WidgetOpacity));
+
+    public static void AttachChips(Window window, MainViewModel viewModel) =>
+        Attach(window, viewModel, () => viewModel.ChipsOpacity, nameof(MainViewModel.ChipsOpacity));
+
+    private static void Attach(Window window, MainViewModel viewModel, Func<double> getOpacity, string opacityProperty)
     {
         void Apply()
         {
-            window.Opacity = viewModel.HoverOpaque && window.IsMouseOver ? 1.0 : viewModel.WidgetOpacity;
+            window.Opacity = viewModel.HoverOpaque && window.IsMouseOver ? 1.0 : getOpacity();
         }
 
         PropertyChangedEventHandler handler = (_, e) =>
         {
-            if (e.PropertyName is nameof(MainViewModel.WidgetOpacity) or nameof(MainViewModel.HoverOpaque)) Apply();
+            if (e.PropertyName == opacityProperty || e.PropertyName == nameof(MainViewModel.HoverOpaque)) Apply();
         };
         viewModel.PropertyChanged += handler;
         window.MouseEnter += (_, _) => Apply();
