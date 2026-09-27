@@ -309,9 +309,33 @@
                                                             </Grid>
                                                             <StackPanel Orientation="Horizontal" Margin="0,10,0,0">
                                                                 <Button Content="{Binding NotifyButtonText}" Padding="10,4" MinHeight="28" Margin="0,0,8,0"
-                                                                        Command="{Binding DataContext.ToggleNotifyCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" />
+                                                                        Command="{Binding DataContext.ToggleNotifyCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+                                                                    <Button.Style>
+                                                                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding NotifyOnReset}" Value="True">
+                                                                                    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+                                                                                    <Setter Property="Foreground" Value="{DynamicResource PanelBrush}" />
+                                                                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </Button.Style>
+                                                                </Button>
                                                                 <Button Content="{Binding ScheduleButtonText}" Padding="10,4" MinHeight="28" Margin="0,0,8,0"
-                                                                        Command="{Binding DataContext.OpenScheduleCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" />
+                                                                        Command="{Binding DataContext.OpenScheduleCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+                                                                    <Button.Style>
+                                                                        <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                                            <Style.Triggers>
+                                                                                <DataTrigger Binding="{Binding HasRefreshSchedule}" Value="True">
+                                                                                    <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+                                                                                    <Setter Property="Foreground" Value="{DynamicResource PanelBrush}" />
+                                                                                    <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                                                                </DataTrigger>
+                                                                            </Style.Triggers>
+                                                                        </Style>
+                                                                    </Button.Style>
+                                                                </Button>
                                                                 <Button Content="{DynamicResource rf.retry}" Padding="10,4" MinHeight="28" Style="{StaticResource PrimaryButton}"
                                                                         Visibility="{Binding CanRetryRefresh, Converter={StaticResource BoolToVisibility}}"
                                                                         Command="{Binding DataContext.RetryRefreshCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" />
@@ -705,7 +729,19 @@
                                                         </StackPanel>
                                                         <StackPanel Grid.Column="1" VerticalAlignment="Top">
                                                             <Button Content="{Binding ScheduleButtonText}" Margin="0,0,0,6"
-                                                                    Command="{Binding DataContext.OpenScheduleCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" />
+                                                                    Command="{Binding DataContext.OpenScheduleCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
+                                                                <Button.Style>
+                                                                    <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+                                                                        <Style.Triggers>
+                                                                            <DataTrigger Binding="{Binding HasRefreshSchedule}" Value="True">
+                                                                                <Setter Property="Background" Value="{DynamicResource AccentBrush}" />
+                                                                                <Setter Property="Foreground" Value="{DynamicResource PanelBrush}" />
+                                                                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                                                            </DataTrigger>
+                                                                        </Style.Triggers>
+                                                                    </Style>
+                                                                </Button.Style>
+                                                            </Button>
                                                             <Button Content="{DynamicResource rf.cancel}" Style="{StaticResource GhostButton}"
                                                                     Visibility="{Binding HasRefreshSchedule, Converter={StaticResource BoolToVisibility}}"
                                                                     Command="{Binding DataContext.CancelScheduleCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" />
