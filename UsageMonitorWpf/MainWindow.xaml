@@ -44,9 +44,9 @@
                 MouseLeftButtonDown="Header_MouseLeftButtonDown">
             <Border.Background>
                 <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                    <GradientStop Color="#0B1418" Offset="0" />
-                    <GradientStop Color="#0F2A2B" Offset="0.45" />
-                    <GradientStop Color="#17806B" Offset="1" />
+                    <GradientStop Color="{DynamicResource HeaderStartColor}" Offset="0" />
+                    <GradientStop Color="{DynamicResource HeaderMiddleColor}" Offset="0.45" />
+                    <GradientStop Color="{DynamicResource HeaderEndColor}" Offset="1" />
                 </LinearGradientBrush>
             </Border.Background>
             <Grid>
@@ -58,12 +58,12 @@
                     <Image Source="Assets/AppIcon.png" Width="56" Height="56" Margin="0,0,16,0" VerticalAlignment="Center"
                            RenderOptions.BitmapScalingMode="HighQuality" />
                     <StackPanel VerticalAlignment="Center">
-                        <TextBlock Text="{Binding AppTitle}" Foreground="White" FontSize="28" FontWeight="Bold" />
-                        <TextBlock Text="{Binding AppSubtitle}" Foreground="#DCE8E4" FontSize="13" Margin="0,6,0,0" />
+                        <TextBlock Text="{Binding AppTitle}" Foreground="{DynamicResource HeaderBrush}" FontSize="28" FontWeight="Bold" />
+                        <TextBlock Text="{Binding AppSubtitle}" Foreground="{DynamicResource HeaderBrush}" FontSize="13" Margin="0,6,0,0" />
                     </StackPanel>
                 </StackPanel>
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="{DynamicResource ui.refreshing}" Foreground="#DCE8E4" VerticalAlignment="Center" Margin="0,0,12,0"
+                    <TextBlock Text="{DynamicResource ui.refreshing}" Foreground="{DynamicResource HeaderBrush}" VerticalAlignment="Center" Margin="0,0,12,0"
                                Visibility="{Binding IsRefreshing, Converter={StaticResource BoolToVisibility}}" />
                     <Button Content="{DynamicResource ui.refresh}" Command="{Binding RefreshCommand}" Margin="0,0,10,0" />
                     <Button Content="{DynamicResource ui.saveSnapshot}" Command="{Binding SaveCommand}" Style="{StaticResource PrimaryButton}" />
@@ -735,6 +735,9 @@
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
                                         <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="Auto" />
                                     </Grid.RowDefinitions>
                                     <TextBlock Text="{DynamicResource rf.set.preNotify}" VerticalAlignment="Center" />
                                     <ComboBox Grid.Column="1" Width="160" HorizontalAlignment="Left" ItemsSource="{Binding PreNotifyOptions}" SelectedValuePath="Value" SelectedValue="{Binding PreNotifyMinutes}" Margin="0,0,0,10" />
@@ -826,16 +829,62 @@
                                     <ComboBox Grid.Row="8" Grid.Column="1" ItemsSource="{Binding Languages}" SelectedValuePath="Value" SelectedValue="{Binding Language}" Margin="0,0,0,10" />
                                     <TextBlock Grid.Row="9" Text="{DynamicResource ui.theme}" VerticalAlignment="Center" />
                                     <ComboBox Grid.Row="9" Grid.Column="1" ItemsSource="{Binding Themes}" SelectedValuePath="Value" SelectedValue="{Binding Theme}" Margin="0,0,0,10" />
-                                    <TextBlock Grid.Row="10" Text="{DynamicResource ui.notifications}" VerticalAlignment="Center" />
-                                    <CheckBox Grid.Row="10" Grid.Column="1" IsChecked="{Binding NotificationsEnabled}" VerticalAlignment="Center" Margin="0,0,0,10" />
-                                    <TextBlock Grid.Row="11" Text="{DynamicResource ui.thresholds}" VerticalAlignment="Center" />
-                                    <TextBox Grid.Row="11" Grid.Column="1" Text="{Binding ThresholdsText, UpdateSourceTrigger=LostFocus}" Margin="0,0,0,10" ToolTip="{DynamicResource ui.thresholdsTip}" />
-                                    <TextBlock Grid.Row="12" Text="{DynamicResource ui.taskbarChips}" VerticalAlignment="Center" />
-                                    <CheckBox Grid.Row="12" Grid.Column="1" IsChecked="{Binding ShowTaskbarChips}" VerticalAlignment="Center" Margin="0,0,0,10" />
-                                    <TextBlock Grid.Row="13" Text="{DynamicResource ui.alwaysOnTop}" VerticalAlignment="Center" />
-                                    <CheckBox Grid.Row="13" Grid.Column="1" IsChecked="{Binding AlwaysOnTop}" VerticalAlignment="Center" Margin="0,0,0,10" />
-                                    <TextBlock Grid.Row="14" Text="{DynamicResource ui.widgetOpacity}" VerticalAlignment="Center" />
-                                    <Grid Grid.Row="14" Grid.Column="1" Margin="0,0,0,10">
+                                    <StackPanel Grid.Row="10" Grid.ColumnSpan="2" Margin="0,0,0,12"
+                                                Visibility="{Binding IsCustomTheme, Converter={StaticResource BoolToVisibility}}">
+                                        <TextBlock Text="{DynamicResource ui.customThemeDesc}" Style="{StaticResource Muted}" FontSize="12" Margin="0,0,0,8" />
+                                        <UniformGrid Columns="2">
+                                            <StackPanel Margin="0,0,12,8">
+                                                <TextBlock Text="{DynamicResource ui.customInk}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
+                                                <TextBox Text="{Binding CustomInk, UpdateSourceTrigger=LostFocus}" />
+                                            </StackPanel>
+                                            <StackPanel Margin="0,0,0,8">
+                                                <TextBlock Text="{DynamicResource ui.customMuted}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
+                                                <TextBox Text="{Binding CustomMuted, UpdateSourceTrigger=LostFocus}" />
+                                            </StackPanel>
+                                            <StackPanel Margin="0,0,12,8">
+                                                <TextBlock Text="{DynamicResource ui.customAccent}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
+                                                <TextBox Text="{Binding CustomAccent, UpdateSourceTrigger=LostFocus}" />
+                                            </StackPanel>
+                                            <StackPanel Margin="0,0,0,8">
+                                                <TextBlock Text="{DynamicResource ui.customPanel}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
+                                                <TextBox Text="{Binding CustomPanel, UpdateSourceTrigger=LostFocus}" />
+                                            </StackPanel>
+                                            <StackPanel Margin="0,0,12,8">
+                                                <TextBlock Text="{DynamicResource ui.customCanvas}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
+                                                <TextBox Text="{Binding CustomCanvas, UpdateSourceTrigger=LostFocus}" />
+                                            </StackPanel>
+                                            <StackPanel Margin="0,0,0,8">
+                                                <TextBlock Text="{DynamicResource ui.customLine}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
+                                                <TextBox Text="{Binding CustomLine, UpdateSourceTrigger=LostFocus}" />
+                                            </StackPanel>
+                                            <StackPanel Margin="0,0,12,8">
+                                                <TextBlock Text="{DynamicResource ui.customHeader}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
+                                                <TextBox Text="{Binding CustomHeader, UpdateSourceTrigger=LostFocus}" />
+                                            </StackPanel>
+                                            <StackPanel Margin="0,0,0,8">
+                                                <TextBlock Text="{DynamicResource ui.customHeaderStart}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
+                                                <TextBox Text="{Binding CustomHeaderStart, UpdateSourceTrigger=LostFocus}" />
+                                            </StackPanel>
+                                            <StackPanel Margin="0,0,12,0">
+                                                <TextBlock Text="{DynamicResource ui.customHeaderMiddle}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
+                                                <TextBox Text="{Binding CustomHeaderMiddle, UpdateSourceTrigger=LostFocus}" />
+                                            </StackPanel>
+                                            <StackPanel>
+                                                <TextBlock Text="{DynamicResource ui.customHeaderEnd}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
+                                                <TextBox Text="{Binding CustomHeaderEnd, UpdateSourceTrigger=LostFocus}" />
+                                            </StackPanel>
+                                        </UniformGrid>
+                                    </StackPanel>
+                                    <TextBlock Grid.Row="11" Text="{DynamicResource ui.notifications}" VerticalAlignment="Center" />
+                                    <CheckBox Grid.Row="11" Grid.Column="1" IsChecked="{Binding NotificationsEnabled}" VerticalAlignment="Center" Margin="0,0,0,10" />
+                                    <TextBlock Grid.Row="12" Text="{DynamicResource ui.thresholds}" VerticalAlignment="Center" />
+                                    <TextBox Grid.Row="12" Grid.Column="1" Text="{Binding ThresholdsText, UpdateSourceTrigger=LostFocus}" Margin="0,0,0,10" ToolTip="{DynamicResource ui.thresholdsTip}" />
+                                    <TextBlock Grid.Row="13" Text="{DynamicResource ui.taskbarChips}" VerticalAlignment="Center" />
+                                    <CheckBox Grid.Row="13" Grid.Column="1" IsChecked="{Binding ShowTaskbarChips}" VerticalAlignment="Center" Margin="0,0,0,10" />
+                                    <TextBlock Grid.Row="14" Text="{DynamicResource ui.alwaysOnTop}" VerticalAlignment="Center" />
+                                    <CheckBox Grid.Row="14" Grid.Column="1" IsChecked="{Binding AlwaysOnTop}" VerticalAlignment="Center" Margin="0,0,0,10" />
+                                    <TextBlock Grid.Row="15" Text="{DynamicResource ui.widgetOpacity}" VerticalAlignment="Center" />
+                                    <Grid Grid.Row="15" Grid.Column="1" Margin="0,0,0,10">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="48" />
@@ -844,14 +893,46 @@
                                                 Value="{Binding WidgetOpacity}" VerticalAlignment="Center" />
                                         <TextBlock Grid.Column="1" Text="{Binding WidgetOpacityText}" TextAlignment="Right" VerticalAlignment="Center" />
                                     </Grid>
-                                    <TextBlock Grid.Row="15" Text="{DynamicResource ui.hoverOpaque}" VerticalAlignment="Center" />
-                                    <CheckBox Grid.Row="15" Grid.Column="1" IsChecked="{Binding HoverOpaque}" VerticalAlignment="Center" Margin="0,0,0,10" />
-                                    <TextBlock Grid.Row="16" Text="{DynamicResource ui.internalVersion}" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Row="16" Grid.Column="1" Text="{Binding InternalVersion}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,0,10" />
-                                    <TextBlock Grid.Row="17" Text="{DynamicResource ui.stateSchema}" VerticalAlignment="Center" />
-                                    <TextBlock Grid.Row="17" Grid.Column="1" Text="{Binding StateSchemaVersion}" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center" Margin="0,0,0,10" />
-                                    <TextBlock Grid.Row="18" Grid.ColumnSpan="2" Style="{StaticResource Muted}"><Run Text="{DynamicResource ui.dataDirectory}" /><Run Text="{Binding DataDirectory, Mode=OneWay}" /></TextBlock>
-                                    <TextBlock Grid.Row="19" Grid.ColumnSpan="2" Text="{Binding FetchWarning}" Style="{StaticResource Muted}" Margin="0,10,0,0" />
+                                    <TextBlock Grid.Row="16" Text="{DynamicResource ui.hoverOpaque}" VerticalAlignment="Center" />
+                                    <CheckBox Grid.Row="16" Grid.Column="1" IsChecked="{Binding HoverOpaque}" VerticalAlignment="Center" Margin="0,0,0,10" />
+                                    <TextBlock Grid.Row="17" Text="{DynamicResource ui.internalVersion}" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Row="17" Grid.Column="1" Text="{Binding InternalVersion}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,0,10" />
+                                    <TextBlock Grid.Row="18" Text="{DynamicResource ui.stateSchema}" VerticalAlignment="Center" />
+                                    <TextBlock Grid.Row="18" Grid.Column="1" Text="{Binding StateSchemaVersion}" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center" Margin="0,0,0,10" />
+                                    <TextBlock Grid.Row="19" Grid.ColumnSpan="2" Style="{StaticResource Muted}"><Run Text="{DynamicResource ui.dataDirectory}" /><Run Text="{Binding DataDirectory, Mode=OneWay}" /></TextBlock>
+                                    <TextBlock Grid.Row="20" Grid.ColumnSpan="2" Text="{Binding FetchWarning}" Style="{StaticResource Muted}" Margin="0,10,0,0" />
+                                </Grid>
+                            </Border>
+                            <Border Style="{StaticResource Card}" MaxWidth="620" HorizontalAlignment="Left">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="72" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Image Source="Assets/AppIcon.png" Width="56" Height="56" VerticalAlignment="Top"
+                                           RenderOptions.BitmapScalingMode="HighQuality" />
+                                    <StackPanel Grid.Column="1">
+                                        <TextBlock Text="{DynamicResource ui.about}" Foreground="{DynamicResource MutedBrush}" FontSize="12" FontWeight="SemiBold" />
+                                        <TextBlock Text="{DynamicResource ui.appLegalName}" FontSize="22" FontWeight="Bold" Margin="0,2,0,0" />
+                                        <TextBlock Foreground="{DynamicResource MutedBrush}" Margin="0,3,0,0">
+                                            <Run Text="v" /><Run Text="{Binding InternalVersion, Mode=OneWay}" />
+                                        </TextBlock>
+                                        <TextBlock Text="{DynamicResource ui.aboutDesc}" Style="{StaticResource Muted}" Margin="0,10,0,0" />
+                                        <TextBlock Text="{DynamicResource ui.copyright}" Style="{StaticResource Muted}" Margin="0,8,0,0" />
+                                        <TextBlock Text="{DynamicResource ui.licenseSummary}" Style="{StaticResource Muted}" Margin="0,12,0,0" />
+                                        <WrapPanel Margin="0,14,0,0">
+                                            <Button Content="{DynamicResource ui.license}" Command="{Binding OpenLicenseCommand}" Margin="0,0,8,8" />
+                                            <Button Content="{DynamicResource ui.openSourceLicenses}" Command="{Binding OpenOpenSourceLicensesCommand}" Margin="0,0,8,8" />
+                                            <Button Content="{DynamicResource ui.githubRepository}" Command="{Binding OpenRepositoryCommand}" Margin="0,0,8,8" />
+                                            <Button Content="{DynamicResource ui.reportIssue}" Command="{Binding ReportIssueCommand}" Margin="0,0,8,8" />
+                                        </WrapPanel>
+                                        <Border CornerRadius="8" Padding="12" Background="{DynamicResource CanvasBrush}" Margin="0,8,0,0">
+                                            <StackPanel>
+                                                <TextBlock Text="{DynamicResource ui.disclaimer}" Style="{StaticResource Muted}" />
+                                                <TextBlock Text="{DynamicResource ui.trademarkNotice}" Style="{StaticResource Muted}" FontSize="12" Margin="0,6,0,0" />
+                                            </StackPanel>
+                                        </Border>
+                                    </StackPanel>
                                 </Grid>
                             </Border>
                         </StackPanel>

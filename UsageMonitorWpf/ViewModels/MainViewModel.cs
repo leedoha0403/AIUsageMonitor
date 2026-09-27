@@ -1,5 +1,8 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
 using System.Reflection;
+using System.Runtime.CompilerServices;
 using System.Windows.Input;
 using System.Windows.Threading;
 using UsageMonitorWpf.Controls;
@@ -73,6 +76,10 @@ public sealed class MainViewModel : ObservableObject
         OpenAccountCommand = new ParamCommand(p => { if (p is ProviderViewModel vm) { SelectedAccount = vm; SelectedTabIndex = 2; } });
         ShowInOverviewCommand = new RelayCommand(() => SelectedTabIndex = 0);
         LoginCommand = new ParamCommand(p => { if (p is ProviderViewModel vm) StartLogin(vm); });
+        OpenLicenseCommand = new RelayCommand(() => ShowLegalDocument("LICENSE", Loc.T("ui.license"), Loc.T("ui.licenseDialogDesc")));
+        OpenOpenSourceLicensesCommand = new RelayCommand(() => ShowLegalDocument("THIRD-PARTY-NOTICES.md", Loc.T("ui.openSourceLicenses"), Loc.T("ui.thirdPartyDialogDesc")));
+        OpenRepositoryCommand = new RelayCommand(() => OpenUrl(RepositoryUrl));
+        ReportIssueCommand = new RelayCommand(() => OpenUrl(IssueUrl));
         _loginTimer.Tick += (_, _) => CheckLoginWatches();
         OpenScheduleCommand = new ParamCommand(p => { if (p is ProviderViewModel vm) OpenSchedule(vm); });
         ToggleNotifyCommand = new ParamCommand(p => { if (p is ProviderViewModel vm) vm.NotifyOnReset = !vm.NotifyOnReset; });
@@ -94,7 +101,7 @@ public sealed class MainViewModel : ObservableObject
         firstTick.Start();
         Microsoft.Win32.SystemEvents.PowerModeChanged += OnPowerModeChanged;
         Loc.Apply(_language);
-        ThemeService.Apply(Theme);
+        ThemeService.Apply(Theme, State.Settings.CustomTheme);
 
         _countdownTimer.Interval = TimeSpan.FromSeconds(1);
         _countdownTimer.Tick += (_, _) =>
@@ -204,6 +211,29 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    private static void ShowLegalDocument(string fileName, string title, string subtitle)
+    {
+        var path = Path.Combine(AppContext.BaseDirectory, fileName);
+        var body = File.Exists(path) ? File.ReadAllText(path) : Loc.T("ui.legalFileMissing", fileName);
+        var window = new UsageMonitorWpf.LegalTextWindow(title, subtitle, body)
+        {
+            Owner = System.Windows.Application.Current.MainWindow?.IsVisible == true ? System.Windows.Application.Current.MainWindow : null
+        };
+        window.ShowDialog();
+    }
+
+    private static void OpenUrl(string url)
+    {
+        try
+        {
+            Process.Start(new ProcessStartInfo(url) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            System.Windows.MessageBox.Show(ex.Message, Loc.T("ui.appName"));
+        }
+    }
+
     private void OnRefreshStateChanged()
     {
         SaveStateOnly();
@@ -239,7 +269,7 @@ public sealed class MainViewModel : ObservableObject
     public IReadOnlyList<OptionItem> Languages { get; } = Options("Korean", "English");
     public IReadOnlyList<OptionItem> WidgetModes { get; } = Options("Compact", "Normal", "Detailed");
     public IReadOnlyList<OptionItem> WindowVersions { get; } = Options("Mini", "Expanded");
-    public IReadOnlyList<OptionItem> Themes { get; } = Options("System", "Light", "Dark");
+    public IReadOnlyList<OptionItem> Themes { get; } = Options("System", "Light", "Dark", "Cute", "Custom");
     public IReadOnlyList<OptionItem> DisplayOptions { get; } = Options("Remaining", "Used");
     public IReadOnlyList<OptionItem> CollectionLevels { get; } = Options(CollectorPolicy.Levels);
     public IReadOnlyList<OptionItem> HistoryRanges { get; } = Options(RangeSpans.Keys.ToArray());
@@ -257,6 +287,10 @@ public sealed class MainViewModel : ObservableObject
     public ICommand ClearFolderCommand { get; }
     public ICommand OpenAccountCommand { get; }
     public ICommand ShowInOverviewCommand { get; }
+    public ICommand OpenLicenseCommand { get; }
+    public ICommand OpenOpenSourceLicensesCommand { get; }
+    public ICommand OpenRepositoryCommand { get; }
+    public ICommand ReportIssueCommand { get; }
 
     public ProviderViewModel? SelectedAccount
     {
@@ -271,6 +305,8 @@ public sealed class MainViewModel : ObservableObject
     }
     public ICommand LoginCommand { get; }
     public string DataDirectory => _store.DataDirectory;
+    public string RepositoryUrl => "https://github.com/leedoha0403/AIUsageMonitor";
+    public string IssueUrl => "https://github.com/leedoha0403/AIUsageMonitor/issues";
     public string InternalVersion { get; } = typeof(MainViewModel).Assembly
         .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?
         .InformationalVersion ?? "0.0.0-internal";
@@ -320,10 +356,73 @@ public sealed class MainViewModel : ObservableObject
             if (value != null && Set(ref _theme, value))
             {
                 State.Settings.Theme = value;
-                ThemeService.Apply(value);
+                ThemeService.Apply(value, State.Settings.CustomTheme);
                 SaveStateOnly();
+                OnPropertyChanged(nameof(IsCustomTheme));
             }
         }
+    }
+
+    public bool IsCustomTheme => Theme == "Custom";
+
+    public string CustomInk
+    {
+        get => State.Settings.CustomTheme.Ink;
+        set => SetCustomThemeColor(value, v => State.Settings.CustomTheme.Ink = v);
+    }
+
+    public string CustomMuted
+    {
+        get => State.Settings.CustomTheme.Muted;
+        set => SetCustomThemeColor(value, v => State.Settings.CustomTheme.Muted = v);
+    }
+
+    public string CustomAccent
+    {
+        get => State.Settings.CustomTheme.Accent;
+        set => SetCustomThemeColor(value, v => State.Settings.CustomTheme.Accent = v);
+    }
+
+    public string CustomPanel
+    {
+        get => State.Settings.CustomTheme.Panel;
+        set => SetCustomThemeColor(value, v => State.Settings.CustomTheme.Panel = v);
+    }
+
+    public string CustomCanvas
+    {
+        get => State.Settings.CustomTheme.Canvas;
+        set => SetCustomThemeColor(value, v => State.Settings.CustomTheme.Canvas = v);
+    }
+
+    public string CustomLine
+    {
+        get => State.Settings.CustomTheme.Line;
+        set => SetCustomThemeColor(value, v => State.Settings.CustomTheme.Line = v);
+    }
+
+    public string CustomHeader
+    {
+        get => State.Settings.CustomTheme.Header;
+        set => SetCustomThemeColor(value, v => State.Settings.CustomTheme.Header = v);
+    }
+
+    public string CustomHeaderStart
+    {
+        get => State.Settings.CustomTheme.HeaderStart;
+        set => SetCustomThemeColor(value, v => State.Settings.CustomTheme.HeaderStart = v);
+    }
+
+    public string CustomHeaderMiddle
+    {
+        get => State.Settings.CustomTheme.HeaderMiddle;
+        set => SetCustomThemeColor(value, v => State.Settings.CustomTheme.HeaderMiddle = v);
+    }
+
+    public string CustomHeaderEnd
+    {
+        get => State.Settings.CustomTheme.HeaderEnd;
+        set => SetCustomThemeColor(value, v => State.Settings.CustomTheme.HeaderEnd = v);
     }
 
     public string DisplayUsageAs
@@ -844,6 +943,15 @@ public sealed class MainViewModel : ObservableObject
     }
 
     private void RefreshTimerOnTick(object? sender, EventArgs e) => _ = RefreshAsync();
+
+    private void SetCustomThemeColor(string? value, Action<string> set, [CallerMemberName] string? propertyName = null)
+    {
+        var normalized = string.IsNullOrWhiteSpace(value) ? "" : value.Trim();
+        set(normalized);
+        OnPropertyChanged(propertyName);
+        if (IsCustomTheme) ThemeService.Apply(Theme, State.Settings.CustomTheme);
+        SaveStateOnly();
+    }
 
     private void SaveStateOnly() => _store.SaveState(State);
 

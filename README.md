@@ -19,6 +19,19 @@ PowerShell MVP도 남겨두었습니다.
 powershell -NoProfile -ExecutionPolicy Bypass -File .\UsageMonitor.ps1
 ```
 
+## mac 호환 별도 프로젝트
+
+`UsageMonitorMac`은 기존 WPF 앱과 분리된 `net8.0` 크로스플랫폼 프리뷰입니다. 아직 mac 네이티브 UI는 붙이지 않았고, Claude/Codex 수집, macOS 로그인 파일 탐색, state/history 저장, 예약 갱신 dry-run처럼 UI 아래에서 재사용할 핵심 레이어를 먼저 검증합니다.
+
+```powershell
+.\.dotnet\dotnet.exe build .\UsageMonitorMac\UsageMonitorMac.csproj
+.\.dotnet\dotnet.exe run --project .\UsageMonitorMac\UsageMonitorMac.csproj -- --self-test
+.\.dotnet\dotnet.exe run --project .\UsageMonitorMac\UsageMonitorMac.csproj -- --once
+.\.dotnet\dotnet.exe run --project .\UsageMonitorMac\UsageMonitorMac.csproj -- --refresh-dry-run --provider codex
+```
+
+mac에서는 같은 명령을 `dotnet`으로 실행하면 됩니다. 테스트용 데이터 폴더는 `USAGE_MONITOR_DATA_DIR`로 분리할 수 있습니다.
+
 ## 정보 밀도 4단계
 
 ```text
@@ -106,3 +119,17 @@ history.jsonl    30일 히스토리 (기존 history.json은 자동 이전 후 hi
 - 작업표시줄 내부 임베딩(현재는 작업표시줄 바로 위에 도킹), Theme/Layout Editor
 - 릴리스 SHA256/서명 검증 설치기와 자동 업데이트(현재 배포 파이프라인 없음)
 - Claude Desktop 앱 로그인 재사용(암호화 저장소)
+
+## 비제휴 및 상표 고지
+
+AI Usage Monitor는 독립적으로 개발된 프로젝트이며 OpenAI 또는 Anthropic과 제휴, 후원, 승인 관계가 아닙니다.
+
+OpenAI, ChatGPT, Codex, Anthropic, Claude 및 관련 명칭과 상표는 각 권리자의 소유입니다.
+
+## License
+
+Free for personal and internal business use. Commercial resale and commercial redistribution are prohibited.
+
+Non-commercial modification and redistribution are allowed under the license terms. See the `LICENSE` file for full terms.
+
+Third-party components and bundled fonts are listed in `THIRD-PARTY-NOTICES.md`.

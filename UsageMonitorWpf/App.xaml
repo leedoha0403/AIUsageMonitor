@@ -13,6 +13,9 @@
         <SolidColorBrush x:Key="CanvasBrush" Color="#F6F8F7" />
         <SolidColorBrush x:Key="LineBrush" Color="#2415191D" />
         <SolidColorBrush x:Key="HeaderBrush" Color="#15191D" />
+        <Color x:Key="HeaderStartColor">#0B1418</Color>
+        <Color x:Key="HeaderMiddleColor">#0F2A2B</Color>
+        <Color x:Key="HeaderEndColor">#17806B</Color>
 
         <!-- Spoqa Han Sans Neo (SIL OFL 1.1, bundled under Fonts/). The subset's Regular file is flagged Bold in its
              metadata, so WPF would never pick it next to Medium/Bold. Regular therefore lives in its own family and

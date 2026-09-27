@@ -39,6 +39,7 @@ public sealed class StateStore
             state.Settings.CollectionLevel = string.IsNullOrWhiteSpace(state.Settings.CollectionLevel) ? defaults.CollectionLevel : state.Settings.CollectionLevel;
             state.Settings.HistoryRange = string.IsNullOrWhiteSpace(state.Settings.HistoryRange) ? defaults.HistoryRange : state.Settings.HistoryRange;
             if (state.Settings.NotificationThresholds is not { Count: > 0 }) state.Settings.NotificationThresholds = defaults.NotificationThresholds;
+            state.Settings.CustomTheme ??= defaults.CustomTheme;
 
             foreach (var (key, account) in state.Providers.ToList())
             {

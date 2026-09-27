@@ -38,7 +38,22 @@ public sealed class AppSettings
     public string HistoryRange { get; set; } = "1D";
     public double WidgetOpacity { get; set; } = 1.0;
     public bool HoverOpaque { get; set; } = true;
+    public CustomThemeSettings CustomTheme { get; set; } = new();
     public RefreshSettings Refresh { get; set; } = new();
+}
+
+public sealed class CustomThemeSettings
+{
+    public string Ink { get; set; } = "#3B2630";
+    public string Muted { get; set; } = "#8E6576";
+    public string Accent { get; set; } = "#FF75A6";
+    public string Panel { get; set; } = "#FFF9FC";
+    public string Canvas { get; set; } = "#FFF1F7";
+    public string Line { get; set; } = "#2EFFB8D2";
+    public string Header { get; set; } = "#8B2C55";
+    public string HeaderStart { get; set; } = "#FFE7F1";
+    public string HeaderMiddle { get; set; } = "#FFE0A8";
+    public string HeaderEnd { get; set; } = "#B9F6E4";
 }
 
 public sealed class UsageProviderState
