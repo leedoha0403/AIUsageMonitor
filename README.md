@@ -8,7 +8,7 @@ Claude Code와 Codex의 사용량, 리셋 시간, 데이터 출처, 신뢰도를
 
 ```powershell
 dotnet build .\UsageMonitorWpf\UsageMonitorWpf.csproj -c Release
-.\UsageMonitorWpf\bin\Release\net8.0-windows\UsageMonitorWpf.exe
+.\UsageMonitorWpf\bin\Release\net8.0-windows\AIUsageMonitor.exe
 ```
 
 개발 중에는 `dotnet run --project .\UsageMonitorWpf\UsageMonitorWpf.csproj`로도 실행할 수 있습니다. 다만 이렇게 실행하면 터미널을 닫을 때 앱도 함께 종료됩니다. .NET 8 SDK가 필요하며, 프로젝트 폴더에 `.dotnet`(로컬 SDK)이 있으면 그것을 우선 사용합니다.
@@ -26,7 +26,7 @@ dotnet build .\UsageMonitorWpf\UsageMonitorWpf.csproj -c Release
 `UsageMonitorWpf.csproj`의 `Version`을 기준으로 빌드하며, 결과물은 `dist\release\`에 다음처럼 생성됩니다.
 
 ```text
-dist\release\<version>\win-x64\UsageMonitorWpf.exe   빌드 산출물(압축 전)
+dist\release\<version>\win-x64\AIUsageMonitor.exe    빌드 산출물(압축 전)
 dist\release\AIUsageMonitor-v<version>-win-x64.zip   배포용 zip
 dist\release\SHA256SUMS.txt                          zip의 SHA256 체크섬 목록
 ```
@@ -72,7 +72,7 @@ Dashboard       Overview · History · Accounts · Snapshot · Diagnostics · Se
 - 계정 관리: 왼쪽 목록에서 계정을 고르면 오른쪽에서 바로 편집합니다(이름, 설정 폴더 찾아보기, 모니터링 켜기/끄기, 기본 계정 지정, 로그인, 삭제). 계정마다 **표시 위치**(미니: 위젯·칩 / 대시보드)를 따로 켜고 끌 수 있습니다. 숨겨도 로그인은 유지되고 사용량 수집도 계속되며, 알림은 한 곳이라도 표시 중인 계정에만 보냅니다. 변경 사항은 즉시 저장되며, 개요 카드의 "계정 관리 ›"와 상세의 "개요에서 보기"로 서로 오갈 수 있습니다.
 - 폰트: Spoqa Han Sans Neo를 내장했습니다(SIL OFL 1.1, `UsageMonitorWpf/Fonts`). subset Regular 파일의 메타데이터가 Bold로 표시되어 있어 Regular와 Medium/Bold를 별도 패밀리로 나눠 사용합니다.
 - 다크 테마: 메뉴, 툴팁, 슬라이더, 체크박스, 스크롤바, 트레이 메뉴, 창 제목 표시줄까지 테마를 따릅니다.
-- Windows 시작 시 자동 실행: 설정 탭 맨 위 또는 트레이 메뉴에서 켭니다. 현재 사용자 시작 프로그램(`HKCU\...\Run`, 관리자 권한 불필요)에 `UsageMonitorWpf.exe --startup`으로 등록합니다. 로그인 시에는 대시보드를 띄우지 않고 트레이와 칩(미니 모드면 위젯)으로 조용히 시작합니다. 실행 파일 위치가 바뀌면 다음 실행 때 등록 경로를 자동으로 갱신하며, 작업 관리자에서 끈 상태도 그대로 반영됩니다.
+- Windows 시작 시 자동 실행: 설정 탭 맨 위 또는 트레이 메뉴에서 켭니다. 현재 사용자 시작 프로그램(`HKCU\...\Run`, 관리자 권한 불필요)에 `AIUsageMonitor.exe --startup`으로 등록합니다. 로그인 시에는 대시보드를 띄우지 않고 트레이와 칩(미니 모드면 위젯)으로 조용히 시작합니다. 실행 파일 위치가 바뀌면 다음 실행 때 등록 경로를 자동으로 갱신하며, 작업 관리자에서 끈 상태도 그대로 반영됩니다.
 - 아이콘: exe, 창 제목 표시줄, 트레이, 알림, 대시보드 및 위젯 헤더에 같은 앱 아이콘을 씁니다. `tools/make-icons.ps1 -Source <원본 이미지>`로 `UsageMonitorWpf/Assets/AppIcon.ico/.png`를 다시 만들 수 있습니다. 40px 이상은 원본 아트워크를 사용하고, 32px 이하(트레이 등)는 선명하도록 같은 디자인을 벡터로 다시 그립니다.
 - 한국어/English: UI, 트레이 메뉴, 상태 메시지, 진단, 알림 전체를 번역했으며 언어를 바꾸면 즉시 반영됩니다(`Core/Loc.cs`).
 - 업데이트 확인: 실행 10초 뒤와 설정 탭의 "업데이트 확인" 버튼에서 GitHub Releases의 최신 태그를 조회해 현재 버전과 비교합니다. 새 버전이 있으면 알림과 설정 탭에 표시하고, [다운로드]를 누르면 릴리스 zip을 `다운로드` 폴더에 받은 뒤 SHA256SUMS로 무결성을 검증하고 탐색기로 보여줍니다. 앱을 자동으로 종료·교체·재시작하지 않으며, 설치는 사용자가 직접 압축을 풀어 진행합니다(`Core/UpdateChecker.cs`).
