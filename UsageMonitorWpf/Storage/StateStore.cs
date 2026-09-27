@@ -40,6 +40,7 @@ public sealed class StateStore
             state.Settings.HistoryRange = string.IsNullOrWhiteSpace(state.Settings.HistoryRange) ? defaults.HistoryRange : state.Settings.HistoryRange;
             if (state.Settings.NotificationThresholds is not { Count: > 0 }) state.Settings.NotificationThresholds = defaults.NotificationThresholds;
             state.Settings.CustomTheme ??= defaults.CustomTheme;
+            state.Settings.CustomThemePresets ??= new();
 
             foreach (var (key, account) in state.Providers.ToList())
             {

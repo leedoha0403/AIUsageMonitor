@@ -874,6 +874,38 @@
                                                 <TextBox Text="{Binding CustomHeaderEnd, UpdateSourceTrigger=LostFocus}" />
                                             </StackPanel>
                                         </UniformGrid>
+                                        <TextBlock Text="{DynamicResource ui.presets}" Style="{StaticResource Muted}" FontSize="12" Margin="0,12,0,6" />
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox Grid.Column="0" Text="{Binding PresetName, UpdateSourceTrigger=PropertyChanged}"
+                                                     ToolTip="{DynamicResource ui.presetNamePlaceholder}" Margin="0,0,8,0" />
+                                            <Button Grid.Column="1" Content="{DynamicResource ui.savePreset}" Command="{Binding SaveThemePresetCommand}" Style="{StaticResource GhostButton}" />
+                                        </Grid>
+                                        <ItemsControl ItemsSource="{Binding CustomThemePresets}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,0,0,4">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <TextBlock Grid.Column="0" Text="{Binding Name}" VerticalAlignment="Center" />
+                                                        <Button Grid.Column="1"
+                                                                Content="{DynamicResource ui.applyPreset}"
+                                                                Command="{Binding DataContext.ApplyThemePresetCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding}" Style="{StaticResource GhostButton}" Margin="0,0,4,0" />
+                                                        <Button Grid.Column="2"
+                                                                Content="{DynamicResource ui.deletePreset}"
+                                                                Command="{Binding DataContext.DeleteThemePresetCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                CommandParameter="{Binding}" Style="{StaticResource GhostButton}" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
                                     </StackPanel>
                                     <TextBlock Grid.Row="11" Text="{DynamicResource ui.notifications}" VerticalAlignment="Center" />
                                     <CheckBox Grid.Row="11" Grid.Column="1" IsChecked="{Binding NotificationsEnabled}" VerticalAlignment="Center" Margin="0,0,0,10" />

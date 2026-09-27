@@ -45,6 +45,7 @@ public sealed class MainViewModel : ObservableObject
     private int _tick;
     private ProviderViewModel? _selectedAccount;
     private int _selectedTabIndex;
+    private string _presetName = "";
 
     public MainViewModel(StateStore store)
     {
@@ -54,6 +55,7 @@ public sealed class MainViewModel : ObservableObject
         ActiveProviders = new ObservableCollection<ProviderViewModel>();
         MiniProviders = new ObservableCollection<ProviderViewModel>();
         DashboardProviders = new ObservableCollection<ProviderViewModel>();
+        CustomThemePresets = new ObservableCollection<CustomThemePreset>(State.Settings.CustomThemePresets);
         _language = State.Settings.Language;
         _widgetMode = State.Settings.WidgetMode;
         _windowVersion = State.Settings.WindowVersion;
@@ -83,6 +85,9 @@ public sealed class MainViewModel : ObservableObject
         _loginTimer.Tick += (_, _) => CheckLoginWatches();
         OpenScheduleCommand = new ParamCommand(p => { if (p is ProviderViewModel vm) OpenSchedule(vm); });
         ToggleNotifyCommand = new ParamCommand(p => { if (p is ProviderViewModel vm) vm.NotifyOnReset = !vm.NotifyOnReset; });
+        SaveThemePresetCommand = new RelayCommand(SaveThemePreset);
+        ApplyThemePresetCommand = new ParamCommand(p => { if (p is CustomThemePreset preset) ApplyThemePreset(preset); });
+        DeleteThemePresetCommand = new ParamCommand(p => { if (p is CustomThemePreset preset) DeleteThemePreset(preset); });
 
         // Scheduled refresh: separate runner/scheduler, checked every 15 seconds and right after the PC wakes.
         _runner = new RefreshRunner(_store.DataDirectory);
@@ -266,6 +271,7 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<ProviderViewModel> ActiveProviders { get; }
     public ObservableCollection<ProviderViewModel> MiniProviders { get; }
     public ObservableCollection<ProviderViewModel> DashboardProviders { get; }
+    public ObservableCollection<CustomThemePreset> CustomThemePresets { get; }
     public IReadOnlyList<OptionItem> Languages { get; } = Options("Korean", "English");
     public IReadOnlyList<OptionItem> WidgetModes { get; } = Options("Compact", "Normal", "Detailed");
     public IReadOnlyList<OptionItem> WindowVersions { get; } = Options("Mini", "Expanded");
@@ -287,6 +293,9 @@ public sealed class MainViewModel : ObservableObject
     public ICommand ClearFolderCommand { get; }
     public ICommand OpenAccountCommand { get; }
     public ICommand ShowInOverviewCommand { get; }
+    public ICommand SaveThemePresetCommand { get; }
+    public ICommand ApplyThemePresetCommand { get; }
+    public ICommand DeleteThemePresetCommand { get; }
     public ICommand OpenLicenseCommand { get; }
     public ICommand OpenOpenSourceLicensesCommand { get; }
     public ICommand OpenRepositoryCommand { get; }
@@ -423,6 +432,12 @@ public sealed class MainViewModel : ObservableObject
     {
         get => State.Settings.CustomTheme.HeaderEnd;
         set => SetCustomThemeColor(value, v => State.Settings.CustomTheme.HeaderEnd = v);
+    }
+
+    public string PresetName
+    {
+        get => _presetName;
+        set => Set(ref _presetName, value ?? "");
     }
 
     public string DisplayUsageAs
@@ -950,6 +965,51 @@ public sealed class MainViewModel : ObservableObject
         set(normalized);
         OnPropertyChanged(propertyName);
         if (IsCustomTheme) ThemeService.Apply(Theme, State.Settings.CustomTheme);
+        SaveStateOnly();
+    }
+
+    private void SaveThemePreset()
+    {
+        var name = PresetName.Trim();
+        if (name.Length == 0) return;
+
+        var existing = State.Settings.CustomThemePresets.FirstOrDefault(p => p.Name == name);
+        if (existing != null)
+        {
+            existing.Theme = State.Settings.CustomTheme.Clone();
+        }
+        else
+        {
+            var preset = new CustomThemePreset { Name = name, Theme = State.Settings.CustomTheme.Clone() };
+            State.Settings.CustomThemePresets.Add(preset);
+            CustomThemePresets.Add(preset);
+        }
+
+        PresetName = "";
+        SaveStateOnly();
+    }
+
+    private void ApplyThemePreset(CustomThemePreset preset)
+    {
+        State.Settings.CustomTheme = preset.Theme.Clone();
+        OnPropertyChanged(nameof(CustomInk));
+        OnPropertyChanged(nameof(CustomMuted));
+        OnPropertyChanged(nameof(CustomAccent));
+        OnPropertyChanged(nameof(CustomPanel));
+        OnPropertyChanged(nameof(CustomCanvas));
+        OnPropertyChanged(nameof(CustomLine));
+        OnPropertyChanged(nameof(CustomHeader));
+        OnPropertyChanged(nameof(CustomHeaderStart));
+        OnPropertyChanged(nameof(CustomHeaderMiddle));
+        OnPropertyChanged(nameof(CustomHeaderEnd));
+        if (IsCustomTheme) ThemeService.Apply(Theme, State.Settings.CustomTheme);
+        SaveStateOnly();
+    }
+
+    private void DeleteThemePreset(CustomThemePreset preset)
+    {
+        State.Settings.CustomThemePresets.RemoveAll(p => p.Name == preset.Name);
+        CustomThemePresets.Remove(preset);
         SaveStateOnly();
     }
 

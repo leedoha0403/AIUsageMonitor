@@ -13,6 +13,26 @@ dotnet build .\UsageMonitorWpf\UsageMonitorWpf.csproj -c Release
 
 개발 중에는 `dotnet run --project .\UsageMonitorWpf\UsageMonitorWpf.csproj`로도 실행할 수 있습니다. 다만 이렇게 실행하면 터미널을 닫을 때 앱도 함께 종료됩니다. .NET 8 SDK가 필요하며, 프로젝트 폴더에 `.dotnet`(로컬 SDK)이 있으면 그것을 우선 사용합니다.
 
+## 릴리스 패키지 만들기
+
+배포용 exe는 `.NET 런타임을 포함한 self-contained, single-file` 빌드로 만듭니다. 사용자가 .NET을 따로 설치할 필요가 없습니다.
+
+```powershell
+.\tools\publish-release.ps1
+# 버전을 지정하려면
+.\tools\publish-release.ps1 -Version 1.0.0
+```
+
+`UsageMonitorWpf.csproj`의 `Version`을 기준으로 빌드하며, 결과물은 `dist\release\`에 다음처럼 생성됩니다.
+
+```text
+dist\release\<version>\win-x64\UsageMonitorWpf.exe   빌드 산출물(압축 전)
+dist\release\AIUsageMonitor-v<version>-win-x64.zip   배포용 zip
+dist\release\SHA256SUMS.txt                          zip의 SHA256 체크섬 목록
+```
+
+릴리스 빌드는 `InformationalVersion`에 `-internal` 접미사 없이 순수 버전 문자열을 심습니다. `dist/`는 git에 커밋되지 않으므로, GitHub Release를 만들 때 zip과 `SHA256SUMS.txt`의 해당 줄을 첨부물로 올리면 됩니다.
+
 PowerShell MVP도 남겨두었습니다.
 
 ```powershell
@@ -117,7 +137,7 @@ history.jsonl    30일 히스토리 (기존 history.json은 자동 이전 후 hi
 ## 아직 하지 않은 것
 
 - 작업표시줄 내부 임베딩(현재는 작업표시줄 바로 위에 도킹), Theme/Layout Editor
-- 릴리스 SHA256/서명 검증 설치기와 자동 업데이트(현재 배포 파이프라인 없음)
+- 코드 서명(Authenticode)과 자동 업데이트. `tools\publish-release.ps1`로 SHA256 체크섬이 포함된 배포용 zip은 만들 수 있지만, exe 자체에 서명은 하지 않습니다.
 - Claude Desktop 앱 로그인 재사용(암호화 저장소)
 
 ## 비제휴 및 상표 고지

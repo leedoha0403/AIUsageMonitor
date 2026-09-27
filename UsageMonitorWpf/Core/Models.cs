@@ -39,6 +39,7 @@ public sealed class AppSettings
     public double WidgetOpacity { get; set; } = 1.0;
     public bool HoverOpaque { get; set; } = true;
     public CustomThemeSettings CustomTheme { get; set; } = new();
+    public List<CustomThemePreset> CustomThemePresets { get; set; } = new();
     public RefreshSettings Refresh { get; set; } = new();
 }
 
@@ -54,6 +55,26 @@ public sealed class CustomThemeSettings
     public string HeaderStart { get; set; } = "#FFE7F1";
     public string HeaderMiddle { get; set; } = "#FFE0A8";
     public string HeaderEnd { get; set; } = "#B9F6E4";
+
+    public CustomThemeSettings Clone() => new()
+    {
+        Ink = Ink,
+        Muted = Muted,
+        Accent = Accent,
+        Panel = Panel,
+        Canvas = Canvas,
+        Line = Line,
+        Header = Header,
+        HeaderStart = HeaderStart,
+        HeaderMiddle = HeaderMiddle,
+        HeaderEnd = HeaderEnd
+    };
+}
+
+public sealed class CustomThemePreset
+{
+    public string Name { get; set; } = "";
+    public CustomThemeSettings Theme { get; set; } = new();
 }
 
 public sealed class UsageProviderState
