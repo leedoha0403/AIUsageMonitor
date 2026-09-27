@@ -502,7 +502,8 @@ public sealed class MainViewModel : ObservableObject
         IsRefreshing = true;
         try
         {
-            await _aggregator.RefreshAsync(State, force);
+            // USAGE_MONITOR_DEMO=1 shows the saved state as-is (no collection), e.g. for screenshots.
+            if (Environment.GetEnvironmentVariable("USAGE_MONITOR_DEMO") != "1") await _aggregator.RefreshAsync(State, force);
             _store.SaveState(State);
             _store.AppendHistory(State);
             foreach (var provider in Providers) provider.RefreshCollectors();

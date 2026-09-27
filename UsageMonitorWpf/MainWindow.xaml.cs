@@ -60,6 +60,15 @@ public partial class MainWindow : Window
         _viewModel.LoginPromptRequested += ShowLoginPrompt;
         _notifyIcon.BalloonTipClosed += (_, _) => _balloonAction = null;
 
+        Closing += (_, e) =>
+        {
+            if (_isExiting) return;
+            // Closing the dashboard (X button) should only hide it to the tray, not exit the app.
+            e.Cancel = true;
+            _viewModel.SaveWindowPlacement(Left, Top);
+            Hide();
+            ShowInTaskbar = false;
+        };
         Closed += (_, _) =>
         {
             _viewModel.PropertyChanged -= ViewModelOnPropertyChanged;
@@ -113,7 +122,7 @@ public partial class MainWindow : Window
         menu.Items.Add(CreateChoiceMenu(Loc.T("ui.runAtStartup"), _viewModel.OnOffOptions, () => _viewModel.RunAtStartup ? "On" : "Off", value => _viewModel.RunAtStartup = value == "On"));
         menu.Items.Add(CreateChoiceMenu(Loc.T("ui.language"), _viewModel.Languages, () => _viewModel.Language, value => _viewModel.Language = value));
         menu.Items.Add(new Forms.ToolStripSeparator());
-        menu.Items.Add(Loc.T("ui.exit"), null, (_, _) => Dispatcher.Invoke(Close));
+        menu.Items.Add(Loc.T("ui.exit"), null, (_, _) => Dispatcher.Invoke(ExitApplication));
         menu.Renderer = new ThemedMenuRenderer(ThemeService.IsDark);
         _notifyIcon.ContextMenuStrip = menu;
         _notifyIcon.Text = Loc.T("ui.appName");
@@ -189,6 +198,14 @@ public partial class MainWindow : Window
         WindowState = WindowState.Normal;
         ShowInTaskbar = true;
         Activate();
+    }
+
+    private bool _isExiting;
+
+    private void ExitApplication()
+    {
+        _isExiting = true;
+        Close();
     }
 
     private void ShowWidget()

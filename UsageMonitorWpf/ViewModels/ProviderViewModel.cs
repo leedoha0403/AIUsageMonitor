@@ -209,7 +209,7 @@ public sealed class ProviderViewModel : ObservableObject
     public static int RetryMaxForDisplay { get; set; } = 3;
 
     public AccountRefresh Refresh => _state.Refresh;
-    private bool WindowActive => !IsSignedOut && _state.SessionResetAt > DateTimeOffset.Now;
+    private bool WindowActive => !IsSignedOut && SessionWindow.IsActive(_state, DateTimeOffset.Now);
     public string NextRenewTime => IsSignedOut ? "-" : WindowActive ? ShortTime(_state.SessionResetAt) : Loc.T("rf.renewableNow");
     public string NextRenewCountdown => WindowActive ? Countdown : "";
 
@@ -284,7 +284,7 @@ public sealed class ProviderViewModel : ObservableObject
     public bool HasUsage => !IsSignedOut;
     public string UsedLine => IsSignedOut ? Loc.T("pv.notSignedIn") : Loc.T("pv.used", SessionUsagePercent);
     public string RemainingLine => IsSignedOut ? Loc.T("pv.notSignedIn") : Loc.T("pv.left", 100 - SessionUsagePercent);
-    public string Countdown => Formatters.Countdown(_state.SessionResetAt);
+    public string Countdown => IsSignedOut || WindowActive ? Formatters.Countdown(_state.SessionResetAt) : Loc.T("rf.renewableNow");
     public string WeeklyCountdown => Formatters.Countdown(_state.WeeklyResetAt);
     public string ResetState => Formatters.ResetState(_state.SessionResetAt);
     public string WeeklyResetLine => Formatters.LocalTime(_state.WeeklyResetAt);
@@ -293,7 +293,7 @@ public sealed class ProviderViewModel : ObservableObject
     public string SourceDisplayLine => Loc.T("pv.sourceLine", SourceLine);
     public string WeeklyResetDisplay => Loc.T("pv.weeklyResetLine", WeeklyResetLine);
     public string CountdownLine => Loc.T("pv.resetIn", Countdown);
-    public string ChipCountdown => Formatters.ShortCountdown(_state.SessionResetAt);
+    public string ChipCountdown => IsSignedOut || WindowActive ? Formatters.ShortCountdown(_state.SessionResetAt) : Loc.T("rf.renewableShort");
     public string WeeklyUsedLine => Loc.T("pv.weekUsed", WeeklyUsagePercent, WeeklyCountdown);
     public string WeeklyRemainingLine => Loc.T("pv.weekLeft", 100 - WeeklyUsagePercent, WeeklyCountdown);
     public string ChipUsedText => IsSignedOut ? $"{ShortName} –" : $"{ShortName} {SessionUsagePercent}%";

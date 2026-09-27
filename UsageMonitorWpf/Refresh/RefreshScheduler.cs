@@ -4,7 +4,8 @@ namespace UsageMonitorWpf.Refresh;
 
 // Decides when each account's scheduled refresh runs and drives RefreshRunner.
 // Rules:
-// - never run while the current 5H window is still active (the planned time moves to the window's reset);
+// - never run while a 5H window is actually running (the planned time moves to that window's reset);
+//   an idle "0%, resets in 5h" report is not a running window (see SessionWindow);
 // - one run per account and planned time (Service + RefreshWindow key); Running/Success block repeats;
 // - failures retry a bounded number of times;
 // - a time missed while the PC slept follows the MissedPolicy.
@@ -34,16 +35,17 @@ public sealed class RefreshScheduler
     public static DateTimeOffset? Plan(UsageProviderState account, AccountRefresh r, DateTimeOffset now)
     {
         if (account.Status == "NOT_SIGNED_IN") return null;
-        var reset = account.SessionResetAt;
-        var basis = reset > now ? reset : now;
+        var renewable = RenewableAt(account, r, now);
+        // "After renewable + delay" counts from the real end of the last window when it is known.
+        var afterBase = WindowActive(account, r, now) ? renewable : account.SessionResetAt <= now ? account.SessionResetAt : now;
         DateTimeOffset target = r.Mode switch
         {
             "AtTime" => NextTimeOfDay(r.Time, now),
-            "AfterReset" => Max(reset.AddMinutes(Math.Max(0, r.DelayMinutes)), now),
-            _ => basis
+            "AfterReset" => Max(afterBase.AddMinutes(Math.Max(0, r.DelayMinutes)), now),
+            _ => renewable
         };
         // Safety: never earlier than the moment a new window can start.
-        var effective = Max(target, reset);
+        var effective = Max(target, renewable);
         if (r.Repeat == "Window") effective = IntoWindow(effective, r.WindowStart, r.WindowEnd);
         return TruncateToSecond(effective);
     }
@@ -78,15 +80,24 @@ public sealed class RefreshScheduler
                     case "Success":
                     case "Failed":
                     case "Missed":
-                        // Repeating schedules plan again once a new window is known.
-                        if (r.Repeat != "Once" && account.SessionResetAt != r.PlannedForReset) changed |= Schedule(account, now);
+                        // Repeating schedules plan again once a new (actually running) window is known.
+                        if (r.Repeat != "Once" && WindowActive(account, r, now) && Differs(RenewableAt(account, r, now), r.PlannedForReset)) changed |= Schedule(account, now);
                         continue;
                     case "RetryWaiting":
                         if (r.NextRetryAt is { } retryAt && now >= retryAt) await ExecuteAsync(account, now, isRetry: true);
                         continue;
                     case "Scheduled":
                     case "Waiting":
-                        if (r.ScheduledFor is not { } due || now < due) continue;
+                        if (r.ScheduledFor is not { } due) continue;
+                        // A running window ends after the planned time: wait for it (never for an idle report).
+                        if (WindowActive(account, r, now) && RenewableAt(account, r, now) is var renewableAt && renewableAt > due + ResetTolerance)
+                        {
+                            // Only report the first move of this plan; later moves just follow the window's end.
+                            Postpone(account, renewableAt, report: r.Status == "Scheduled" && now >= due);
+                            changed = true;
+                            continue;
+                        }
+                        if (now < due) continue;
                         if (now - due > MissedAfter && !ApplyMissedPolicy(account, now))
                         {
                             changed = true;
@@ -134,8 +145,9 @@ public sealed class RefreshScheduler
         r.Enabled = true;
         r.Attempts = 0;
         r.Status = "Scheduled";
-        r.ScheduledFor = TruncateToSecond(Max(DateTimeOffset.Now, account.SessionResetAt));
-        r.PlannedForReset = account.SessionResetAt;
+        var now = DateTimeOffset.Now;
+        r.ScheduledFor = TruncateToSecond(Max(now, RenewableAt(account, r, now)));
+        r.PlannedForReset = RenewableAt(account, r, now);
         _changed();
     }
 
@@ -149,7 +161,7 @@ public sealed class RefreshScheduler
             return true;
         }
         r.ScheduledFor = planned;
-        r.PlannedForReset = account.SessionResetAt;
+        r.PlannedForReset = RenewableAt(account, r, now);
         r.Status = "Scheduled";
         r.Attempts = 0;
         r.NextRetryAt = null;
@@ -195,13 +207,10 @@ public sealed class RefreshScheduler
         {
             // Confirm with fresh (token-free) usage data that a new window can really start now.
             await _refreshUsage(true);
-            var reset = account.SessionResetAt;
-            if (reset > DateTimeOffset.Now + ResetTolerance)
+            var checkedAt = DateTimeOffset.Now;
+            if (WindowActive(account, r, checkedAt) && RenewableAt(account, r, checkedAt) is var renewable && renewable > checkedAt + ResetTolerance)
             {
-                r.ScheduledFor = TruncateToSecond(reset);
-                r.PlannedForReset = reset;
-                r.Status = "Waiting";
-                Log(account, "Postponed", Loc.T("rf.log.postponed", reset.ToLocalTime().ToString("HH:mm")));
+                Postpone(account, renewable, report: true);
                 _changed();
                 return;
             }
@@ -227,7 +236,7 @@ public sealed class RefreshScheduler
                 _notify(Loc.T("rf.notify.successTitle", account.DisplayName), Loc.T("rf.notify.successBody", DateTimeOffset.Now.ToString("HH:mm")));
                 // Pick up the new window's reset time.
                 await _refreshUsage(true);
-                r.PlannedForReset = r.Repeat == "Once" ? account.SessionResetAt : r.PlannedForReset;
+                if (r.Repeat == "Once") r.PlannedForReset = RenewableAt(account, r, DateTimeOffset.Now);
             }
             else
             {
@@ -271,6 +280,8 @@ public sealed class RefreshScheduler
         if (reset <= now && now - reset < TimeSpan.FromMinutes(10) && r.NotifiedResetFor != reset)
         {
             r.NotifiedResetFor = reset;
+            // A scheduled run due now reports its own result (started / postponed / failed).
+            if (r.Enabled && r.ScheduledFor is { } due && (due - now).Duration() <= TimeSpan.FromMinutes(2)) return true;
             var scheduled = r.Enabled && r.ScheduledFor is { } at ? Loc.T("rf.notify.readyScheduled", at.ToLocalTime().ToString("HH:mm")) : Loc.T("rf.notify.readyBody");
             _notify(Loc.T("rf.notify.readyTitle", account.DisplayName), scheduled);
             return true;
@@ -291,6 +302,34 @@ public sealed class RefreshScheduler
         });
         if (_state.RefreshLog.Count > 100) _state.RefreshLog.RemoveRange(0, _state.RefreshLog.Count - 100);
     }
+
+    private void Postpone(UsageProviderState account, DateTimeOffset renewable, bool report)
+    {
+        var r = account.Refresh;
+        r.ScheduledFor = TruncateToSecond(renewable);
+        r.PlannedForReset = renewable;
+        r.Status = "Waiting";
+        if (!report) return;
+        var at = renewable.ToLocalTime().ToString("HH:mm");
+        Log(account, "Postponed", Loc.T("rf.log.postponed", at));
+        _notify(Loc.T("rf.notify.postponedTitle", account.DisplayName), Loc.T("rf.notify.postponedBody", at));
+    }
+
+    // ---- window helpers
+
+    // A window is running if the provider says so, or if our own refresh started one less than 5H ago
+    // (a greeting can still read as 0% used, which would otherwise look like an idle window).
+    private static bool WindowActive(UsageProviderState account, AccountRefresh r, DateTimeOffset now) =>
+        SessionWindow.IsActive(account, now) || (r.LastSuccessAt is { } ok && now < ok + SessionWindow.Length);
+
+    private static DateTimeOffset RenewableAt(UsageProviderState account, AccountRefresh r, DateTimeOffset now)
+    {
+        if (SessionWindow.IsActive(account, now)) return account.SessionResetAt;
+        if (r.LastSuccessAt is { } ok && now < ok + SessionWindow.Length) return ok + SessionWindow.Length;
+        return now;
+    }
+
+    private static bool Differs(DateTimeOffset a, DateTimeOffset? b) => b is not { } other || (a - other).Duration() > TimeSpan.FromMinutes(2);
 
     // ---- time helpers
 

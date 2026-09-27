@@ -12,8 +12,7 @@
         WindowStartupLocation="Manual"
         Background="{DynamicResource CanvasBrush}"
         FontFamily="{StaticResource AppFont}"
-        TextElement.Foreground="{DynamicResource InkBrush}"
-        Topmost="{Binding AlwaysOnTop}">
+        TextElement.Foreground="{DynamicResource InkBrush}">
     <Window.Resources>
         <conv:BoolToVisibilityConverter x:Key="BoolToVisibility" />
         <conv:InverseBoolConverter x:Key="InverseBool" />
