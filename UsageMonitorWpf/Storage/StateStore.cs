@@ -73,7 +73,7 @@ public sealed class StateStore
         state.UpdatedAt = DateTimeOffset.Now;
         var temp = StatePath + ".tmp";
         File.WriteAllText(temp, JsonSerializer.Serialize(state, _json));
-        File.Move(temp, StatePath, overwrite: true);
+        ReplaceFile(temp, StatePath);
     }
 
     public IReadOnlyList<UsageSnapshot> LoadHistory()
@@ -156,7 +156,31 @@ public sealed class StateStore
         if (_history == null) return;
         var temp = HistoryPath + ".tmp";
         File.WriteAllLines(temp, _history.Select(x => JsonSerializer.Serialize(x, _line)));
-        File.Move(temp, HistoryPath, overwrite: true);
+        ReplaceFile(temp, HistoryPath);
+    }
+
+    // Antivirus/indexer briefly open a file that was just written, so replacing it right after the
+    // previous save can fail with a sharing violation. Retry briefly; if it still fails, keep the old
+    // file (the next save catches up) instead of letting the exception take the whole app down.
+    private static void ReplaceFile(string temp, string target)
+    {
+        for (var attempt = 1; ; attempt++)
+        {
+            try
+            {
+                File.Move(temp, target, overwrite: true);
+                return;
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            {
+                if (attempt >= 5)
+                {
+                    AppLog.Write($"could not replace {Path.GetFileName(target)}: {ex.Message}");
+                    return;
+                }
+                Thread.Sleep(50 * attempt);
+            }
+        }
     }
 
     private static string ResolveDataDirectory()

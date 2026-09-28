@@ -15,6 +15,21 @@ public partial class App : System.Windows.Application
 
     protected override void OnStartup(System.Windows.StartupEventArgs e)
     {
+        // Without these, any exception outside startup (timer tick, save, refresh) ends the process
+        // silently with nothing in the log.
+        DispatcherUnhandledException += (_, args) =>
+        {
+            Log("unhandled UI exception (kept running): " + args.Exception);
+            args.Handled = true;
+        };
+        System.AppDomain.CurrentDomain.UnhandledException += (_, args) =>
+            Log("fatal unhandled exception: " + args.ExceptionObject);
+        System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (_, args) =>
+        {
+            Log("unobserved task exception: " + args.Exception);
+            args.SetObserved();
+        };
+
         try
         {
             base.OnStartup(e);
@@ -85,20 +100,12 @@ public partial class App : System.Windows.Application
 
     protected override void OnExit(System.Windows.ExitEventArgs e)
     {
+        Log("exit (code " + e.ApplicationExitCode + ")");
         _showEvent?.Dispose();
         if (_ownsMutex) _singleInstanceMutex?.ReleaseMutex();
         _singleInstanceMutex?.Dispose();
         base.OnExit(e);
     }
 
-    private static void Log(string message)
-    {
-        var dir = System.IO.Path.Combine(
-            System.Environment.GetFolderPath(System.Environment.SpecialFolder.ApplicationData),
-            "UsageMonitorWpf");
-        System.IO.Directory.CreateDirectory(dir);
-        System.IO.File.AppendAllText(
-            System.IO.Path.Combine(dir, "startup.log"),
-            $"[{System.DateTimeOffset.Now:O}] {message}{System.Environment.NewLine}");
-    }
+    private static void Log(string message) => Core.AppLog.Write(message);
 }
