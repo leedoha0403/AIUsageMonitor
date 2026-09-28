@@ -92,7 +92,31 @@ public sealed class ProviderViewModel : ObservableObject
     public string ConfigDirectory
     {
         get => _state.ConfigDirectory;
-        set { _state.ConfigDirectory = value?.Trim() ?? ""; OnPropertyChanged(); }
+        set { _state.ConfigDirectory = value?.Trim() ?? ""; OnPropertyChanged(); OnPropertyChanged(nameof(LoginOptions)); }
+    }
+
+    // Copilot accounts pick one of the GitHub logins signed in to the Copilot CLI.
+    public bool HasLoginChoice => _state.ProviderId == "copilot";
+
+    public string GitHubLogin
+    {
+        get => _state.Login;
+        // A ComboBox can push null while its items are being replaced; that is not a user choice.
+        set { if (value == null) return; _state.Login = value.Trim(); OnPropertyChanged(); }
+    }
+
+    public IReadOnlyList<OptionItem> LoginOptions
+    {
+        get
+        {
+            var options = new List<OptionItem> { new("", () => Loc.T("ui.acc.githubLoginCurrent")) };
+            if (!HasLoginChoice) return options;
+            var users = Providers.CopilotLogin.SignedInUsers(_state).Select(u => u.Login).ToList();
+            // Keep a saved login selectable even after it was signed out of the CLI.
+            if (_state.Login.Length > 0 && !users.Contains(_state.Login, StringComparer.OrdinalIgnoreCase)) users.Add(_state.Login);
+            options.AddRange(users.Select(login => new OptionItem(login, () => login)));
+            return options;
+        }
     }
 
     public string AccountName
@@ -125,6 +149,17 @@ public sealed class ProviderViewModel : ObservableObject
         get => _state.Confidence;
         set { _state.Confidence = value; OnPropertyChanged(); RefreshDerived(); }
     }
+
+    // Copilot has no 5H window: its monthly quota (kept in the Weekly* fields) is the primary one.
+    public bool HasSessionWindow => _state.Capabilities.SessionUsage;
+    public bool IsMonthly => _state.Capabilities.LongWindow == "Monthly";
+    public int PrimaryPercent => HasSessionWindow ? SessionUsagePercent : WeeklyUsagePercent;
+    public DateTimeOffset PrimaryResetAt => HasSessionWindow ? _state.SessionResetAt : _state.WeeklyResetAt;
+    public string LongWindowLabel => Loc.T(IsMonthly ? "ui.monthly" : "ui.weekly");
+    public string PrimaryLabel => HasSessionWindow ? Loc.T("ui.5h") : LongWindowLabel;
+    public string PrimaryLongLabel => HasSessionWindow ? Loc.T("ui.5hour") : LongWindowLabel;
+    public string LongUsageLabel => Loc.T(IsMonthly ? "ui.monthlyUsage" : "ui.weeklyUsage");
+    public string LongResetLabel => Loc.T(IsMonthly ? "ui.monthlyReset" : "ui.weeklyReset");
 
     public int SessionUsagePercent
     {
@@ -194,7 +229,7 @@ public sealed class ProviderViewModel : ObservableObject
         get
         {
             if (!IsEnabled) return Loc.T("pv.off");
-            var status = IsSignedOut ? HealthLabel : Loc.T("pv.listStatus", HealthLabel, SessionUsagePercent);
+            var status = IsSignedOut ? HealthLabel : Loc.T("pv.listStatus", HealthLabel, PrimaryLabel, PrimaryPercent);
             var hidden = new List<string>();
             if (!ShowInMini) hidden.Add(Loc.T("pv.hiddenMini"));
             if (!ShowInDashboard) hidden.Add(Loc.T("pv.hiddenDashboard"));
@@ -209,9 +244,9 @@ public sealed class ProviderViewModel : ObservableObject
     public static int RetryMaxForDisplay { get; set; } = 3;
 
     public AccountRefresh Refresh => _state.Refresh;
-    private bool WindowActive => !IsSignedOut && SessionWindow.IsActive(_state, _state.Refresh, DateTimeOffset.Now);
-    public string NextRenewTime => IsSignedOut ? "-" : WindowActive ? ShortTime(_state.SessionResetAt) : Loc.T("rf.renewableNow");
-    public string NextRenewCountdown => WindowActive ? Countdown : "";
+    private bool WindowActive => !IsSignedOut && HasSessionWindow && SessionWindow.IsActive(_state, _state.Refresh, DateTimeOffset.Now);
+    public string NextRenewTime => IsSignedOut ? "-" : IsWindowPending ? Loc.T("pv.windowStartingShort") : WindowActive ? ShortTime(_state.SessionResetAt) : Loc.T("rf.renewableNow");
+    public string NextRenewCountdown => WindowActive && CountdownIsTime ? Countdown : "";
 
     public bool NotifyOnReset
     {
@@ -282,27 +317,36 @@ public sealed class ProviderViewModel : ObservableObject
     public string Message => Loc.Display(_state.Message);
     public bool IsSignedOut => _state.Status == "NOT_SIGNED_IN";
     public bool HasUsage => !IsSignedOut;
-    public string UsedLine => IsSignedOut ? Loc.T("pv.notSignedIn") : Loc.T("pv.used", SessionUsagePercent);
-    public string RemainingLine => IsSignedOut ? Loc.T("pv.notSignedIn") : Loc.T("pv.left", 100 - SessionUsagePercent);
-    public string Countdown => IsSignedOut || WindowActive ? Formatters.Countdown(_state.SessionResetAt) : Loc.T("rf.renewableNow");
+    // Renewal/scheduled refresh is about the 5H window only.
+    public bool HasRenewal => HasUsage && HasSessionWindow;
+    public string UsedLine => IsSignedOut ? Loc.T("pv.notSignedIn") : Loc.T("pv.used", PrimaryPercent);
+    public string RemainingLine => IsSignedOut ? Loc.T("pv.notSignedIn") : Loc.T("pv.left", 100 - PrimaryPercent);
+    // A window we just started via scheduled refresh, whose new reset time the usage endpoint hasn't reported yet
+    // (it lags the request by a little). Until then the stored reset is the old, already passed one.
+    public bool IsWindowPending => HasSessionWindow && !IsSignedOut && WindowActive && _state.SessionResetAt <= DateTimeOffset.Now;
+    // Countdown is a real time span, not a state such as "renewable now".
+    private bool CountdownIsTime => (!HasSessionWindow || IsSignedOut || (WindowActive && !IsWindowPending)) && PrimaryResetAt > DateTimeOffset.Now;
+    public string Countdown => !HasSessionWindow || IsSignedOut || (WindowActive && !IsWindowPending) ? Formatters.Countdown(PrimaryResetAt)
+        : IsWindowPending ? Loc.T("pv.windowStarting") : Loc.T("rf.renewableNow");
     public string WeeklyCountdown => Formatters.Countdown(_state.WeeklyResetAt);
-    public string ResetState => Formatters.ResetState(_state.SessionResetAt);
+    public string ResetState => CountdownIsTime ? Formatters.ResetState(PrimaryResetAt) : "";
     public string WeeklyResetLine => Formatters.LocalTime(_state.WeeklyResetAt);
-    public string UsageState => Formatters.UsageState(SessionUsagePercent);
+    public string UsageState => Formatters.UsageState(PrimaryPercent);
     public string SourceLine => $"{Loc.Term("src.", Source)} / {Loc.Term("conf.", Confidence)}";
     public string SourceDisplayLine => Loc.T("pv.sourceLine", SourceLine);
-    public string WeeklyResetDisplay => Loc.T("pv.weeklyResetLine", WeeklyResetLine);
-    public string CountdownLine => Loc.T("pv.resetIn", Countdown);
-    public string ChipCountdown => IsSignedOut || WindowActive ? Formatters.ShortCountdown(_state.SessionResetAt) : Loc.T("rf.renewableShort");
-    public string WeeklyUsedLine => Loc.T("pv.weekUsed", WeeklyUsagePercent, WeeklyCountdown);
-    public string WeeklyRemainingLine => Loc.T("pv.weekLeft", 100 - WeeklyUsagePercent, WeeklyCountdown);
-    public string ChipUsedText => IsSignedOut ? $"{ShortName} –" : $"{ShortName} {SessionUsagePercent}%";
-    public string ChipRemainingText => IsSignedOut ? $"{ShortName} –" : $"{ShortName} {100 - SessionUsagePercent}%";
-    public string Summary => IsSignedOut ? Message : Loc.T("pv.summary", 100 - SessionUsagePercent, Countdown);
+    public string WeeklyResetDisplay => Loc.T(IsMonthly ? "pv.monthlyResetLine" : "pv.weeklyResetLine", WeeklyResetLine);
+    public string CountdownLine => CountdownIsTime ? Loc.T("pv.resetIn", Countdown) : Countdown;
+    public string ChipCountdown => !HasSessionWindow || IsSignedOut || (WindowActive && !IsWindowPending) ? Formatters.ShortCountdown(PrimaryResetAt)
+        : IsWindowPending ? Loc.T("pv.windowStartingShort") : Loc.T("rf.renewableShort");
+    public string WeeklyUsedLine => Loc.T(IsMonthly ? "pv.monthUsed" : "pv.weekUsed", WeeklyUsagePercent, WeeklyCountdown);
+    public string WeeklyRemainingLine => Loc.T(IsMonthly ? "pv.monthLeft" : "pv.weekLeft", 100 - WeeklyUsagePercent, WeeklyCountdown);
+    public string ChipUsedText => IsSignedOut ? $"{ShortName} –" : $"{ShortName} {PrimaryPercent}%";
+    public string ChipRemainingText => IsSignedOut ? $"{ShortName} –" : $"{ShortName} {100 - PrimaryPercent}%";
+    public string Summary => IsSignedOut ? Message : Loc.T(CountdownIsTime ? "pv.summary" : "pv.summaryState", 100 - PrimaryPercent, Countdown);
     public string PlanLine => Loc.T("pv.plan", _state.Plan);
     public string LastSuccessText => Loc.T("pv.lastSuccess", Formatters.Ago(_state.LastSuccessAt));
     public bool HasModelBreakdown => ModelBreakdown.Count > 0;
-    public bool HasExtraUsage => _state.ExtraUsage is { IsEnabled: true } || _state.CreditsBalance != null;
+    public bool HasExtraUsage => _state.ExtraUsage is { IsEnabled: true } || !string.IsNullOrEmpty(_state.CreditsBalance);
 
     public string ExtraUsageText
     {
@@ -314,7 +358,9 @@ public sealed class ProviderViewModel : ObservableObject
                 var limit = extra.MonthlyLimitDollars.HasValue ? $" / ${extra.MonthlyLimitDollars.Value:0.00}" : "";
                 return Loc.T("pv.extra", used, limit);
             }
-            return _state.CreditsBalance != null ? Loc.T("pv.credits", _state.CreditsBalance) : "";
+            if (string.IsNullOrEmpty(_state.CreditsBalance)) return "";
+            // Copilot stores a full message (premium-request overage), not a balance.
+            return IsMonthly ? Loc.Display(_state.CreditsBalance) : Loc.T("pv.credits", _state.CreditsBalance);
         }
     }
 
@@ -343,8 +389,9 @@ public sealed class ProviderViewModel : ObservableObject
     public string FieldSourcesText => string.Join(Environment.NewLine, new[]
     {
         (Loc.T("pv.field.session"), "sessionUsagePercent"), (Loc.T("pv.field.sessionReset"), "sessionResetAt"),
-        (Loc.T("pv.field.weekly"), "weeklyUsagePercent"), (Loc.T("pv.field.weeklyReset"), "weeklyResetAt"), (Loc.T("pv.field.plan"), "plan")
-    }.Select(f =>
+        (Loc.T(IsMonthly ? "pv.field.monthly" : "pv.field.weekly"), "weeklyUsagePercent"),
+        (Loc.T(IsMonthly ? "pv.field.monthlyReset" : "pv.field.weeklyReset"), "weeklyResetAt"), (Loc.T("pv.field.plan"), "plan")
+    }.Where(f => HasSessionWindow || !f.Item2.StartsWith("session")).Select(f =>
     {
         var fs = _state.FieldSources.GetValueOrDefault(f.Item2);
         var label = f.Item1.PadRight(Loc.IsKorean ? 8 : 13);
@@ -391,6 +438,13 @@ public sealed class ProviderViewModel : ObservableObject
             TimelineText = ResetHistoryText = Loc.T("pv.signedOutData");
             return;
         }
+        // Velocity/forecast/reset history are modeled on the 5H window; a monthly quota has none of that.
+        if (!HasSessionWindow)
+        {
+            VelocityText = "-";
+            ForecastText = TimelineText = ResetHistoryText = Loc.T("pv.noForecastMonthly");
+            return;
+        }
         var window = UsageAnalytics.CurrentWindow(history, _state);
         var velocity = UsageAnalytics.Velocity(window, _state);
         VelocityText = velocity == null
@@ -431,7 +485,9 @@ public sealed class ProviderViewModel : ObservableObject
                      nameof(CountdownLine), nameof(ChipCountdown), nameof(FieldSourcesText), nameof(ExtraUsageText),
                      nameof(LoginButtonText), nameof(LoginHint), nameof(ListStatus), nameof(LoginStateText), nameof(DefaultFolderHint),
                      nameof(NextRenewTime), nameof(NextRenewCountdown), nameof(HasRefreshSchedule), nameof(CanRetryRefresh), nameof(IsRefreshRunning),
-                     nameof(ScheduleButtonText), nameof(RefreshStatusText), nameof(ScheduleSummary), nameof(NotifyButtonText), nameof(NotifyOnReset)
+                     nameof(ScheduleButtonText), nameof(RefreshStatusText), nameof(ScheduleSummary), nameof(NotifyButtonText), nameof(NotifyOnReset),
+                     nameof(PrimaryPercent), nameof(PrimaryResetAt), nameof(PrimaryLabel), nameof(PrimaryLongLabel), nameof(LongWindowLabel),
+                     nameof(LongUsageLabel), nameof(LongResetLabel), nameof(HasSessionWindow), nameof(IsMonthly), nameof(HasRenewal), nameof(IsWindowPending)
                  })
         {
             OnPropertyChanged(name);

@@ -1,6 +1,6 @@
 # Usage Monitor
 
-Claude Code와 Codex의 사용량, 리셋 시간, 데이터 출처, 신뢰도를 보는 Windows 데스크톱 앱입니다. 목표는 단순 사용량 표시기가 아니라 **AI Coding Usage Control Center**입니다. 평소에는 작업표시줄 칩 몇 픽셀만 쓰고, 필요할 때 값의 출처, 사용 패턴, Reset Timeline까지 확인합니다.
+Claude Code, Codex, GitHub Copilot의 사용량, 리셋 시간, 데이터 출처, 신뢰도를 보는 Windows 데스크톱 앱입니다. 목표는 단순 사용량 표시기가 아니라 **AI Coding Usage Control Center**입니다. 평소에는 작업표시줄 칩 몇 픽셀만 쓰고, 필요할 때 값의 출처, 사용 패턴, Reset Timeline까지 확인합니다.
 
 ## 실행
 
@@ -82,9 +82,12 @@ Dashboard       Overview · History · Accounts · Snapshot · Diagnostics · Se
 - **Collector Fallback 체인**: 계정마다 우선순위대로 실행하고, 필드 단위로 병합합니다. 각 필드는 먼저 값을 준 Collector가 소유합니다.
   - Claude: `Official`(OAuth usage endpoint) → `RateLimit`(비활성) → `Local`
   - Codex: `Official`(ChatGPT usage endpoint) → `SessionLog`(로컬 세션 로그의 rate_limits) → `Local`
+  - GitHub Copilot: `Official`(`api.github.com/copilot_internal/user`) → `Local`
+- **GitHub Copilot**: Copilot에는 5H/주간 창이 없고 월간 프리미엄 요청 한도만 있습니다. Copilot 카드는 5H 칸 대신 월간 사용률과 월간 리셋(매월 1일 00:00 UTC)을 주 지표로 보여주고, 프리미엄 요청/채팅/완성 사용 횟수(예: `Premium 44/300`)와 한도 초과 횟수를 함께 표시합니다. 예약 갱신과 5H 기반 속도/추정은 Copilot에 적용되지 않습니다.
 - **Field-level Source / Confidence**: 5H 사용량, 5H 리셋, 주간 사용량, 주간 리셋, Plan마다 출처, 신뢰도, 갱신 시각을 기록합니다.
-- **Multi Account**: 여러 계정을 동시에 모니터링합니다. 추가 계정은 각자의 CLI 설정 폴더(`CLAUDE_CONFIG_DIR` / `CODEX_HOME`)를 지정합니다. 계정별 활성화/비활성화가 가능하고, Accounts 탭에서 계정끼리 비교할 수 있습니다.
+- **Multi Account**: 여러 계정을 동시에 모니터링합니다. 추가 계정은 각자의 CLI 설정 폴더(`CLAUDE_CONFIG_DIR` / `CODEX_HOME` / `COPILOT_HOME`)를 지정합니다. 계정별 활성화/비활성화가 가능하고, Accounts 탭에서 계정끼리 비교할 수 있습니다.
 - **Credential 탐색**: 사용자 지정 경로 → 환경변수 → Windows CLI(`~/.claude`, `~/.codex`) → WSL(Deep)
+  - Copilot: `~/.copilot/config.json`의 마지막 로그인 계정을 읽고, 토큰은 Copilot CLI가 저장한 Windows 자격 증명 관리자 항목에서 읽습니다. 기본 계정은 CLI와 같은 순서로 `COPILOT_GITHUB_TOKEN` / `GH_TOKEN` / `GITHUB_TOKEN` 환경변수를 먼저 봅니다.
 - **Not signed in 처리**: 로그인이 없거나 만료된 Provider는 회색으로 표시하고 로그인 안내를 보여줍니다. 나머지 Provider는 정상 동작합니다.
 - **Model breakdown / Extra Usage**: Claude Opus/Sonnet 주간 사용량, 유료 Extra usage, Codex credits(Dashboard 전용)
 - **Usage History**: 로컬 `history.jsonl`에 30일 보관합니다(값이 바뀌었거나 5분이 지났을 때만 기록). 1H / 6H / 1D / 7D / 30D 그래프를 제공합니다.
@@ -115,14 +118,15 @@ Dashboard       Overview · History · Accounts · Snapshot · Diagnostics · Se
 | 레벨 | 동작 |
 |---|---|
 | Safe | 로컬 캐시와 수동 스냅샷만 사용합니다. 로그인 파일을 읽거나 네트워크 요청을 하지 않습니다. |
-| Standard (기본) | Claude Code/Codex CLI 로그인을 **읽기 전용**으로 재사용해 공식 사용량 조회 엔드포인트만 호출합니다. |
+| Standard (기본) | Claude Code/Codex/Copilot CLI 로그인을 **읽기 전용**으로 재사용해 공식 사용량 조회 엔드포인트만 호출합니다. |
 | Deep | Standard 기능에 Codex 세션 로그 fallback과 WSL 로그인 탐색을 더합니다. |
 
 원칙:
 
 - No Backend · No Telemetry · No API Key · Credential Local Only
-- 인증 정보는 로컬에서 읽어 해당 Provider의 공식 도메인(`api.anthropic.com`, `chatgpt.com`)으로만 보냅니다. state/history/log에는 저장하지 않고, 토큰 갱신(rotate)도 하지 않습니다. 로그인이 만료되면 CLI를 한 번 실행하라고 안내합니다.
+- 인증 정보는 로컬에서 읽어 해당 Provider의 공식 도메인(`api.anthropic.com`, `chatgpt.com`, `api.github.com`)으로만 보냅니다. state/history/log에는 저장하지 않고, 토큰 갱신(rotate)도 하지 않습니다. 로그인이 만료되면 CLI를 한 번 실행하라고 안내합니다.
 - 조회 엔드포인트는 모델 호출이 아닌 상태 조회라서 사용량을 소모하지 않습니다(`TOKEN-FREE`).
+- Copilot의 `copilot_internal/user`는 Copilot IDE 확장이 한도 표시에 쓰는 비공개 엔드포인트입니다. 공식 문서화된 API가 아니므로 GitHub가 바꾸면 동작하지 않을 수 있습니다.
 - 모델 호출이 필요한 경로(Claude Messages API rate-limit header)는 체인에 표시만 하며 자동으로 실행하지 않습니다(`UNVERIFIED`).
 - Codex 세션 로그는 `rate_limits`가 들어 있는 줄만 파싱합니다.
 
@@ -143,9 +147,9 @@ history.jsonl    30일 히스토리 (기존 history.json은 자동 이전 후 hi
 
 ## 비제휴 및 상표 고지
 
-AI Usage Monitor는 독립적으로 개발된 프로젝트이며 OpenAI 또는 Anthropic과 제휴, 후원, 승인 관계가 아닙니다.
+AI Usage Monitor는 독립적으로 개발된 프로젝트이며 OpenAI, Anthropic 또는 GitHub과 제휴, 후원, 승인 관계가 아닙니다.
 
-OpenAI, ChatGPT, Codex, Anthropic, Claude 및 관련 명칭과 상표는 각 권리자의 소유입니다.
+OpenAI, ChatGPT, Codex, Anthropic, Claude, GitHub, Copilot 및 관련 명칭과 상표는 각 권리자의 소유입니다.
 
 ## License
 

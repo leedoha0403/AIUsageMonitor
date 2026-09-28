@@ -21,7 +21,13 @@ public static class LoginHelper
             [@"%APPDATA%\npm\codex.cmd", @"%USERPROFILE%\.local\bin\codex.exe"],
             "login",
             "npm install -g @openai/codex",
-            "CODEX_HOME", ".codex", "auth.json")
+            "CODEX_HOME", ".codex", "auth.json"),
+        // The token itself goes to Credential Manager; config.json changes when the login completes.
+        ["copilot"] = new("copilot",
+            [@"%APPDATA%\npm\copilot.cmd"],
+            "login",
+            "npm install -g @github/copilot",
+            "COPILOT_HOME", ".copilot", "config.json")
     };
 
     public static string? FindCli(string providerId)

@@ -54,7 +54,7 @@ public sealed class CollectorResult
 
 public static class ProviderRegistry
 {
-    public static readonly IReadOnlyList<IUsageProvider> All = [new ClaudeProvider(), new CodexProvider()];
+    public static readonly IReadOnlyList<IUsageProvider> All = [new ClaudeProvider(), new CodexProvider(), new CopilotProvider()];
 
     public static IUsageProvider Get(string providerId) =>
         All.FirstOrDefault(x => x.ProviderId == providerId) ?? throw new ArgumentException($"Unknown provider {providerId}");

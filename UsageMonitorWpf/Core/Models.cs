@@ -4,7 +4,7 @@ public sealed class AppState
 {
     public int SchemaVersion { get; set; } = 3;
     public AppSettings Settings { get; set; } = new();
-    // Keyed by account key ("claude", "codex", or "<provider>-<id>" for extra accounts).
+    // Keyed by account key ("claude", "codex", "copilot", or "<provider>-<id>" for extra accounts).
     public Dictionary<string, UsageProviderState> Providers { get; set; } = new();
     public DateTimeOffset UpdatedAt { get; set; } = DateTimeOffset.Now;
     public double? WindowLeft { get; set; }
@@ -90,6 +90,8 @@ public sealed class UsageProviderState
     public bool ShowInDashboard { get; set; } = true;
     // Optional CLAUDE_CONFIG_DIR / CODEX_HOME style directory for this account.
     public string ConfigDirectory { get; set; } = "";
+    // Copilot only: the CLI keeps several GitHub logins in one folder. Empty = the CLI's current login.
+    public string Login { get; set; } = "";
     public string Plan { get; set; } = "Manual";
     public string Status { get; set; } = "READY";
     public string Source { get; set; } = "Manual";
@@ -131,8 +133,11 @@ public sealed class ExtraUsageInfo
 
 public sealed class ProviderCapabilities
 {
+    // False for providers without a 5H window (Copilot): the long window becomes the primary one.
     public bool SessionUsage { get; set; } = true;
     public bool WeeklyUsage { get; set; } = true;
+    // Length of the window kept in WeeklyUsagePercent/WeeklyResetAt: "Weekly" or "Monthly".
+    public string LongWindow { get; set; } = "Weekly";
     public bool Credits { get; set; }
     public bool MultiAccount { get; set; }
     public bool WslCredentialDetection { get; set; }

@@ -91,7 +91,7 @@
                                             <TextBlock Text="{Binding PrimaryMark}" Foreground="{DynamicResource AccentBrush}" Margin="0,0,4,0" />
                                             <TextBlock Text="{Binding Title}" FontWeight="Bold" />
                                         </StackPanel>
-                                        <!-- Time until the 5H window resets, shown in every widget mode. -->
+                                        <!-- Time until the primary window (5H, or the Copilot month) resets, shown in every widget mode. -->
                                         <TextBlock Text="{Binding CountdownLine}" Foreground="{DynamicResource MutedBrush}" FontSize="12" Margin="0,2,0,0"
                                                    Visibility="{Binding HasUsage, Converter={StaticResource BoolToVisibility}}" />
                                         <TextBlock Text="{Binding RefreshStatusText}" Foreground="{DynamicResource AccentBrush}" FontSize="11" Margin="0,2,0,0"
@@ -118,15 +118,18 @@
                                             IsEnabled="{Binding IsLoginPending, Converter={StaticResource InverseBool}}"
                                             Command="{Binding DataContext.LoginCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" />
                                 </StackPanel>
-                                <ProgressBar Value="{Binding SessionUsagePercent, Mode=OneWay}" Maximum="100" Foreground="{Binding AccentBrush}" Margin="0,10,0,0"
+                                <ProgressBar Value="{Binding PrimaryPercent, Mode=OneWay}" Maximum="100" Foreground="{Binding AccentBrush}" Margin="0,10,0,0"
                                              Visibility="{Binding DataContext.IsCompact, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
                                 <StackPanel Margin="0,8,0,0"
                                             Visibility="{Binding DataContext.IsDetailed, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}">
-                                    <TextBlock Text="{Binding WeeklyRemainingLine}" FontSize="12"
-                                               Visibility="{Binding DataContext.ShowRemaining, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}" />
-                                    <TextBlock Text="{Binding WeeklyUsedLine}" FontSize="12"
-                                               Visibility="{Binding DataContext.ShowRemaining, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
-                                    <ProgressBar Value="{Binding WeeklyUsagePercent, Mode=OneWay}" Maximum="100" Height="4" Margin="0,4,0,4" />
+                                    <!-- Weekly line; without a 5H window the long window is already the main value. -->
+                                    <StackPanel Visibility="{Binding HasSessionWindow, Converter={StaticResource BoolToVisibility}}">
+                                        <TextBlock Text="{Binding WeeklyRemainingLine}" FontSize="12"
+                                                   Visibility="{Binding DataContext.ShowRemaining, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}" />
+                                        <TextBlock Text="{Binding WeeklyUsedLine}" FontSize="12"
+                                                   Visibility="{Binding DataContext.ShowRemaining, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
+                                        <ProgressBar Value="{Binding WeeklyUsagePercent, Mode=OneWay}" Maximum="100" Height="4" Margin="0,4,0,4" />
+                                    </StackPanel>
                                     <TextBlock Text="{Binding SourceLine}" Foreground="{DynamicResource MutedBrush}" FontSize="11" />
                                     <TextBlock Text="{Binding ForecastText}" Foreground="{DynamicResource MutedBrush}" FontSize="11" TextWrapping="Wrap" />
                                 </StackPanel>

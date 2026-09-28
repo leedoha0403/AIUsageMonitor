@@ -4,7 +4,7 @@ namespace UsageMonitorWpf.Core;
 
 public static class Defaults
 {
-    public static readonly string[] ProviderOrder = ["claude", "codex"];
+    public static readonly string[] ProviderOrder = ["claude", "codex", "copilot"];
 
     public static AppState CreateState()
     {
@@ -33,6 +33,8 @@ public static class Defaults
             CollectedAt = now,
             FieldSources = ManualSources()
         };
+        // Copilot was added after Claude/Codex: don't surface a signed-out card to people who never used it.
+        if (providerId == "copilot" && accountKey == providerId) account.Enabled = LoginHelper.FindCli(providerId) != null;
         SyncDefinition(account);
         return account;
     }

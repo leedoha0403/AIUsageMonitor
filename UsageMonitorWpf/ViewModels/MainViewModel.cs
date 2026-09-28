@@ -883,6 +883,7 @@ public sealed class MainViewModel : ObservableObject
                 SaveStateOnly();
                 break;
             case nameof(ProviderViewModel.ConfigDirectory):
+            case nameof(ProviderViewModel.GitHubLogin):
                 SaveStateOnly();
                 _ = RefreshAsync(force: true);
                 break;
@@ -962,7 +963,7 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    // Notifies once per 5H window for each newly crossed threshold (the highest one crossed).
+    // Notifies once per primary window (5H, or Copilot's month) for each newly crossed threshold (the highest one crossed).
     private void CheckThresholds()
     {
         if (!State.Settings.NotificationsEnabled) return;
@@ -971,19 +972,19 @@ public sealed class MainViewModel : ObservableObject
         {
             var account = provider.State;
             if (provider.IsSignedOut) continue;
-            if (account.NotifiedWindowResetAt is not { } notified || (notified - account.SessionResetAt).Duration() > TimeSpan.FromMinutes(10))
+            if (account.NotifiedWindowResetAt is not { } notified || (notified - provider.PrimaryResetAt).Duration() > TimeSpan.FromMinutes(10))
             {
-                account.NotifiedWindowResetAt = account.SessionResetAt;
+                account.NotifiedWindowResetAt = provider.PrimaryResetAt;
                 account.LastNotifiedThreshold = 0;
                 changed = true;
             }
-            var crossed = State.Settings.NotificationThresholds.Where(t => account.SessionUsagePercent >= t).DefaultIfEmpty(0).Max();
+            var crossed = State.Settings.NotificationThresholds.Where(t => provider.PrimaryPercent >= t).DefaultIfEmpty(0).Max();
             if (crossed > account.LastNotifiedThreshold)
             {
                 account.LastNotifiedThreshold = crossed;
                 changed = true;
                 NotificationRequested?.Invoke(
-                    Loc.T("mv.notifyTitle", provider.Title, account.SessionUsagePercent),
+                    Loc.T("mv.notifyTitle", provider.Title, provider.PrimaryLabel, provider.PrimaryPercent),
                     Loc.T("mv.notifyBody", crossed, provider.Countdown, provider.SourceLine),
                     null);
             }
@@ -1190,7 +1191,7 @@ public sealed class MainViewModel : ObservableObject
             Name = p.Title,
             Brush = p.SeriesBrush,
             Points = history.Where(x => x.EffectiveKey == p.AccountKey && x.Timestamp >= since)
-                .Select(x => (x.Timestamp, (double)x.SessionUsagePercent))
+                .Select(x => (x.Timestamp, (double)(p.HasSessionWindow ? x.SessionUsagePercent : x.WeeklyUsagePercent)))
                 .ToList()
         }).ToList();
     }

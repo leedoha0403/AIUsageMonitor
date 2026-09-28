@@ -162,20 +162,23 @@
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="50" />
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Text="{DynamicResource ui.5h}" Foreground="{DynamicResource MutedBrush}" />
-                                            <ProgressBar Grid.Column="1" Value="{Binding SessionUsagePercent, Mode=OneWay}" Maximum="100" Foreground="{Binding AccentBrush}" />
-                                            <TextBlock Grid.Column="2" Text="{Binding SessionUsagePercent, StringFormat={}{0}%}" TextAlignment="Right" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding PrimaryLabel}" Foreground="{DynamicResource MutedBrush}" />
+                                            <ProgressBar Grid.Column="1" Value="{Binding PrimaryPercent, Mode=OneWay}" Maximum="100" Foreground="{Binding AccentBrush}" />
+                                            <TextBlock Grid.Column="2" Text="{Binding PrimaryPercent, StringFormat={}{0}%}" TextAlignment="Right" FontWeight="SemiBold" />
                                         </Grid>
 
+                                        <!-- Weekly row; without a 5H window the long window is already the primary row above. -->
                                         <Grid Margin="0,11,0,0" Visibility="{Binding DataContext.IsCompact, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="58" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="50" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="{DynamicResource ui.weekly}" Foreground="{DynamicResource MutedBrush}" />
-                                            <ProgressBar Grid.Column="1" Value="{Binding WeeklyUsagePercent, Mode=OneWay}" Maximum="100" />
-                                            <TextBlock Grid.Column="2" Text="{Binding WeeklyUsagePercent, StringFormat={}{0}%}" TextAlignment="Right" FontWeight="SemiBold" />
+                                            <Grid Visibility="{Binding HasSessionWindow, Converter={StaticResource BoolToVisibility}}">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="58" />
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="50" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding LongWindowLabel}" Foreground="{DynamicResource MutedBrush}" />
+                                                <ProgressBar Grid.Column="1" Value="{Binding WeeklyUsagePercent, Mode=OneWay}" Maximum="100" />
+                                                <TextBlock Grid.Column="2" Text="{Binding WeeklyUsagePercent, StringFormat={}{0}%}" TextAlignment="Right" FontWeight="SemiBold" />
+                                            </Grid>
                                         </Grid>
 
                                         <Border CornerRadius="8" Padding="12" Background="{DynamicResource CanvasBrush}" Margin="0,14,0,0">
@@ -242,11 +245,11 @@
                                                             <ColumnDefinition Width="*" />
                                                             <ColumnDefinition Width="56" />
                                                         </Grid.ColumnDefinitions>
-                                                        <TextBlock Text="{DynamicResource ui.5hour}" FontWeight="SemiBold" />
-                                                        <ProgressBar Grid.Column="1" Value="{Binding SessionUsagePercent, Mode=OneWay}" Maximum="100" Foreground="{Binding AccentBrush}" />
-                                                        <TextBlock Grid.Column="2" Text="{Binding SessionUsagePercent, StringFormat={}{0}%}" TextAlignment="Right" FontWeight="SemiBold" />
+                                                        <TextBlock Text="{Binding PrimaryLongLabel}" FontWeight="SemiBold" />
+                                                        <ProgressBar Grid.Column="1" Value="{Binding PrimaryPercent, Mode=OneWay}" Maximum="100" Foreground="{Binding AccentBrush}" />
+                                                        <TextBlock Grid.Column="2" Text="{Binding PrimaryPercent, StringFormat={}{0}%}" TextAlignment="Right" FontWeight="SemiBold" />
                                                     </Grid>
-                                                    <Grid Margin="0,11,0,0">
+                                                    <Grid Margin="0,11,0,0" Visibility="{Binding HasSessionWindow, Converter={StaticResource BoolToVisibility}}">
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="96" />
                                                             <ColumnDefinition Width="*" />
@@ -288,7 +291,7 @@
                                                     </Border>
                                                     <!-- Renewal: next renewable time, scheduled refresh, alert -->
                                                     <Border CornerRadius="8" Padding="12" Background="{DynamicResource CanvasBrush}" Margin="0,10,0,0"
-                                                            Visibility="{Binding HasUsage, Converter={StaticResource BoolToVisibility}}">
+                                                            Visibility="{Binding HasRenewal, Converter={StaticResource BoolToVisibility}}">
                                                         <StackPanel>
                                                             <Grid>
                                                                 <Grid.ColumnDefinitions>
@@ -456,6 +459,7 @@
                                     <StackPanel DockPanel.Dock="Bottom" Margin="4,8,4,4">
                                         <Button Content="{DynamicResource ui.acc.addClaude}" Command="{Binding AddAccountCommand}" CommandParameter="claude" Style="{StaticResource GhostButton}" HorizontalContentAlignment="Left" />
                                         <Button Content="{DynamicResource ui.acc.addCodex}" Command="{Binding AddAccountCommand}" CommandParameter="codex" Style="{StaticResource GhostButton}" Margin="0,4,0,0" />
+                                        <Button Content="{DynamicResource ui.acc.addCopilot}" Command="{Binding AddAccountCommand}" CommandParameter="copilot" Style="{StaticResource GhostButton}" Margin="0,4,0,0" />
                                     </StackPanel>
                                     <ListBox ItemsSource="{Binding Providers}" SelectedItem="{Binding SelectedAccount}"
                                              Background="Transparent" BorderThickness="0" ScrollViewer.HorizontalScrollBarVisibility="Disabled">
@@ -535,10 +539,10 @@
                                                     <ColumnDefinition Width="*" />
                                                 </Grid.ColumnDefinitions>
                                                 <StackPanel>
-                                                    <TextBlock Text="{DynamicResource ui.5h}" Style="{StaticResource Muted}" />
-                                                    <TextBlock Text="{Binding SessionUsagePercent, StringFormat={}{0}%}" FontSize="20" FontWeight="Bold" Foreground="{Binding AccentBrush}" />
+                                                    <TextBlock Text="{Binding PrimaryLabel}" Style="{StaticResource Muted}" />
+                                                    <TextBlock Text="{Binding PrimaryPercent, StringFormat={}{0}%}" FontSize="20" FontWeight="Bold" Foreground="{Binding AccentBrush}" />
                                                 </StackPanel>
-                                                <StackPanel Grid.Column="1">
+                                                <StackPanel Grid.Column="1" Visibility="{Binding HasSessionWindow, Converter={StaticResource BoolToVisibility}}">
                                                     <TextBlock Text="{DynamicResource ui.weekly}" Style="{StaticResource Muted}" />
                                                     <TextBlock Text="{Binding WeeklyUsagePercent, StringFormat={}{0}%}" FontSize="20" FontWeight="Bold" />
                                                 </StackPanel>
@@ -592,6 +596,14 @@
                                                     Command="{Binding DataContext.ClearFolderCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" />
                                         </Grid>
                                         <TextBlock Text="{Binding DefaultFolderHint}" Style="{StaticResource Muted}" FontSize="12" Margin="0,5,0,0" />
+
+                                        <!-- GitHub login (Copilot keeps several logins in one folder) -->
+                                        <StackPanel Visibility="{Binding HasLoginChoice, Converter={StaticResource BoolToVisibility}}">
+                                            <TextBlock Text="{DynamicResource ui.acc.githubLogin}" FontWeight="SemiBold" Margin="0,18,0,6" />
+                                            <ComboBox ItemsSource="{Binding LoginOptions}" DisplayMemberPath="Label" SelectedValuePath="Value"
+                                                      SelectedValue="{Binding GitHubLogin}" />
+                                            <TextBlock Text="{DynamicResource ui.acc.githubLoginHint}" Style="{StaticResource Muted}" FontSize="12" Margin="0,5,0,0" TextWrapping="Wrap" />
+                                        </StackPanel>
 
                                         <!-- Options -->
                                         <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
@@ -657,13 +669,13 @@
                                                 <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding Plan, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,14,10" />
                                                 <TextBlock Grid.Row="1" Grid.Column="2" Text="{DynamicResource ui.source}" VerticalAlignment="Center" />
                                                 <TextBox Grid.Row="1" Grid.Column="3" Text="{Binding Source, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10" />
-                                                <TextBlock Grid.Row="2" Text="{DynamicResource ui.5hUsage}" VerticalAlignment="Center" />
-                                                <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding SessionUsagePercent, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,14,10" />
-                                                <TextBlock Grid.Row="2" Grid.Column="2" Text="{DynamicResource ui.weeklyUsage}" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Row="2" Text="{DynamicResource ui.5hUsage}" VerticalAlignment="Center" Visibility="{Binding HasSessionWindow, Converter={StaticResource BoolToVisibility}}" />
+                                                <TextBox Grid.Row="2" Grid.Column="1" Text="{Binding SessionUsagePercent, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,14,10" Visibility="{Binding HasSessionWindow, Converter={StaticResource BoolToVisibility}}" />
+                                                <TextBlock Grid.Row="2" Grid.Column="2" Text="{Binding LongUsageLabel}" VerticalAlignment="Center" />
                                                 <TextBox Grid.Row="2" Grid.Column="3" Text="{Binding WeeklyUsagePercent, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,0,10" />
-                                                <TextBlock Grid.Row="3" Text="{DynamicResource ui.5hReset}" VerticalAlignment="Center" />
-                                                <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding SessionResetText, UpdateSourceTrigger=LostFocus}" Margin="0,0,14,10" />
-                                                <TextBlock Grid.Row="3" Grid.Column="2" Text="{DynamicResource ui.weeklyReset}" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Row="3" Text="{DynamicResource ui.5hReset}" VerticalAlignment="Center" Visibility="{Binding HasSessionWindow, Converter={StaticResource BoolToVisibility}}" />
+                                                <TextBox Grid.Row="3" Grid.Column="1" Text="{Binding SessionResetText, UpdateSourceTrigger=LostFocus}" Margin="0,0,14,10" Visibility="{Binding HasSessionWindow, Converter={StaticResource BoolToVisibility}}" />
+                                                <TextBlock Grid.Row="3" Grid.Column="2" Text="{Binding LongResetLabel}" VerticalAlignment="Center" />
                                                 <TextBox Grid.Row="3" Grid.Column="3" Text="{Binding WeeklyResetText, UpdateSourceTrigger=LostFocus}" Margin="0,0,0,10" />
                                                 <TextBlock Grid.Row="4" Text="{DynamicResource ui.confidence}" VerticalAlignment="Center" />
                                                 <ComboBox Grid.Row="4" Grid.Column="1" Text="{Binding Confidence, UpdateSourceTrigger=PropertyChanged}" IsEditable="True" Margin="0,0,14,0">
@@ -706,7 +718,8 @@
                                     <ItemsControl ItemsSource="{Binding ActiveProviders}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border CornerRadius="8" Padding="12" Background="{DynamicResource CanvasBrush}" Margin="0,0,0,8">
+                                                <Border CornerRadius="8" Padding="12" Background="{DynamicResource CanvasBrush}" Margin="0,0,0,8"
+                                                        Visibility="{Binding HasSessionWindow, Converter={StaticResource BoolToVisibility}}">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="*" />

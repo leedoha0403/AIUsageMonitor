@@ -57,7 +57,8 @@ public sealed class RefreshScheduler
         try
         {
             var changed = false;
-            foreach (var account in _state.Providers.Values.Where(a => a.Enabled).ToList())
+            // Scheduled refresh starts a new 5H window; providers without one (Copilot) have nothing to renew.
+            foreach (var account in _state.Providers.Values.Where(a => a.Enabled && a.Capabilities.SessionUsage).ToList())
             {
                 changed |= HandleNotifications(account, now);
                 var r = account.Refresh;
@@ -236,6 +237,7 @@ public sealed class RefreshScheduler
                 _notify(Loc.T("rf.notify.successTitle", account.DisplayName), Loc.T("rf.notify.successBody", DateTimeOffset.Now.ToString("HH:mm")));
                 // Pick up the new window's reset time.
                 await _refreshUsage(true);
+                if (account.SessionResetAt <= DateTimeOffset.Now) _ = ConfirmNewWindowAsync(account);
                 if (r.Repeat == "Once") r.PlannedForReset = RenewableAt(account, r, DateTimeOffset.Now);
             }
             else
@@ -261,6 +263,18 @@ public sealed class RefreshScheduler
         finally
         {
             _running.Remove(account.AccountKey);
+        }
+    }
+
+    // The usage endpoint can lag the request that started the window, so the collection right after a
+    // successful refresh may still see the old window. Re-check shortly instead of waiting for the next poll.
+    private async Task ConfirmNewWindowAsync(UsageProviderState account)
+    {
+        foreach (var seconds in new[] { 10, 20, 30 })
+        {
+            await Task.Delay(TimeSpan.FromSeconds(seconds));
+            if (account.SessionResetAt > DateTimeOffset.Now) return;
+            await _refreshUsage(true);
         }
     }
 
