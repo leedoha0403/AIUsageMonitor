@@ -17,9 +17,12 @@ public partial class ChipsWindow : Window
     private readonly Action _toggleFlyout;
     private readonly Action _openDashboard;
     private readonly Action _exitApp;
+    private readonly Action _showWidget;
+    private readonly Func<bool> _isWidgetShown;
     private readonly DispatcherTimer _topmostTimer = new() { Interval = TimeSpan.FromSeconds(3) };
+    private bool _closingForExit;
 
-    public ChipsWindow(MainViewModel viewModel, Action toggleFlyout, Action openDashboard, Action exitApp)
+    public ChipsWindow(MainViewModel viewModel, Action toggleFlyout, Action openDashboard, Action exitApp, Action showWidget, Func<bool> isWidgetShown)
     {
         InitializeComponent();
         DataContext = viewModel;
@@ -27,6 +30,8 @@ public partial class ChipsWindow : Window
         _toggleFlyout = toggleFlyout;
         _openDashboard = openDashboard;
         _exitApp = exitApp;
+        _showWidget = showWidget;
+        _isWidgetShown = isWidgetShown;
         WindowOpacity.AttachChips(this, viewModel);
         SizeChanged += (_, _) => { if (!_viewModel.State.ChipsLeft.HasValue) PlaceDefault(); };
         // The taskbar raises itself over topmost windows when clicked; re-assert our z-order.
@@ -35,6 +40,22 @@ public partial class ChipsWindow : Window
             if (IsVisible) SetWindowPos(new WindowInteropHelper(this).Handle, HwndTopmost, 0, 0, 0, 0, SwpNoSizeMoveActivate);
         };
         IsVisibleChanged += (_, _) => { if (IsVisible) _topmostTimer.Start(); else _topmostTimer.Stop(); };
+        // Alt+F4 or an OS close request should only hide the chips (to the tray), like the dashboard's X button.
+        // Only CloseForExit (app shutdown) performs a real close.
+        Closing += (_, e) =>
+        {
+            if (_closingForExit) return;
+            e.Cancel = true;
+            _viewModel.ShowTaskbarChips = false;
+            Hide();
+        };
+    }
+
+    // Called only when the whole app is shutting down; lets this window actually close.
+    public void CloseForExit()
+    {
+        _closingForExit = true;
+        Close();
     }
 
     public void ShowChips()
@@ -92,6 +113,13 @@ public partial class ChipsWindow : Window
     {
         _viewModel.ShowTaskbarChips = false;
         Hide();
+    }
+
+    private void ShowWidget_Click(object sender, RoutedEventArgs e) => _showWidget();
+
+    private void ContextMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        ShowWidgetMenuItem.Visibility = _isWidgetShown() ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void Exit_Click(object sender, RoutedEventArgs e) => _exitApp();

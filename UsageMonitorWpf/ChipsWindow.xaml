@@ -24,7 +24,7 @@
             MouseLeftButtonDown="Chips_MouseLeftButtonDown"
             ToolTip="{Binding StatusSummary}">
         <Border.ContextMenu>
-            <ContextMenu>
+            <ContextMenu Opened="ContextMenu_Opened">
                 <MenuItem Header="{DynamicResource ui.openDashboard}" Click="OpenDashboard_Click" />
                 <MenuItem Header="{DynamicResource ui.refresh}" Command="{Binding RefreshCommand}" />
                 <Separator />
@@ -42,6 +42,7 @@
                 </MenuItem>
                 <Separator />
                 <MenuItem Header="{DynamicResource ui.hideChips}" Click="HideChips_Click" />
+                <MenuItem x:Name="ShowWidgetMenuItem" Header="{DynamicResource ui.showWidget}" Click="ShowWidget_Click" />
                 <MenuItem Header="{DynamicResource ui.exit}" Click="Exit_Click" />
             </ContextMenu>
         </Border.ContextMenu>

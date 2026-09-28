@@ -325,10 +325,13 @@ public sealed class ProviderViewModel : ObservableObject
     // (it lags the request by a little). Until then the stored reset is the old, already passed one.
     public bool IsWindowPending => HasSessionWindow && !IsSignedOut && WindowActive && _state.SessionResetAt <= DateTimeOffset.Now;
     // Countdown is a real time span, not a state such as "renewable now".
-    private bool CountdownIsTime => (!HasSessionWindow || IsSignedOut || (WindowActive && !IsWindowPending)) && PrimaryResetAt > DateTimeOffset.Now;
-    public string Countdown => !HasSessionWindow || IsSignedOut || (WindowActive && !IsWindowPending) ? Formatters.Countdown(PrimaryResetAt)
+    // Signed out means we cannot confirm the window is still active, so the countdown must not keep ticking
+    // toward a possibly-stale reset time - show a static placeholder instead (see NextRenewTime's "-").
+    private bool CountdownIsTime => !IsSignedOut && (!HasSessionWindow || (WindowActive && !IsWindowPending)) && PrimaryResetAt > DateTimeOffset.Now;
+    public string Countdown => IsSignedOut ? "-"
+        : !HasSessionWindow || (WindowActive && !IsWindowPending) ? Formatters.Countdown(PrimaryResetAt)
         : IsWindowPending ? Loc.T("pv.windowStarting") : Loc.T("rf.renewableNow");
-    public string WeeklyCountdown => Formatters.Countdown(_state.WeeklyResetAt);
+    public string WeeklyCountdown => IsSignedOut ? "-" : Formatters.Countdown(_state.WeeklyResetAt);
     public string ResetState => CountdownIsTime ? Formatters.ResetState(PrimaryResetAt) : "";
     public string WeeklyResetLine => Formatters.LocalTime(_state.WeeklyResetAt);
     public string UsageState => Formatters.UsageState(PrimaryPercent);
@@ -336,7 +339,8 @@ public sealed class ProviderViewModel : ObservableObject
     public string SourceDisplayLine => Loc.T("pv.sourceLine", SourceLine);
     public string WeeklyResetDisplay => Loc.T(IsMonthly ? "pv.monthlyResetLine" : "pv.weeklyResetLine", WeeklyResetLine);
     public string CountdownLine => CountdownIsTime ? Loc.T("pv.resetIn", Countdown) : Countdown;
-    public string ChipCountdown => !HasSessionWindow || IsSignedOut || (WindowActive && !IsWindowPending) ? Formatters.ShortCountdown(PrimaryResetAt)
+    public string ChipCountdown => IsSignedOut ? "-"
+        : !HasSessionWindow || (WindowActive && !IsWindowPending) ? Formatters.ShortCountdown(PrimaryResetAt)
         : IsWindowPending ? Loc.T("pv.windowStartingShort") : Loc.T("rf.renewableShort");
     public string WeeklyUsedLine => Loc.T(IsMonthly ? "pv.monthUsed" : "pv.weekUsed", WeeklyUsagePercent, WeeklyCountdown);
     public string WeeklyRemainingLine => Loc.T(IsMonthly ? "pv.monthLeft" : "pv.weekLeft", 100 - WeeklyUsagePercent, WeeklyCountdown);

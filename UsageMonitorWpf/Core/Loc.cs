@@ -156,6 +156,8 @@ public static class Loc
         ["ui.openDashboard"] = ("Open Dashboard", "대시보드 열기"),
         ["ui.openWidget"] = ("Open Widget", "위젯 열기"),
         ["ui.hideChips"] = ("Hide Chips", "칩 숨기기"),
+        ["ui.showChips"] = ("Show Chips", "칩 보이기"),
+        ["ui.showWidget"] = ("Show Widget", "위젯 보이기"),
         ["ui.exit"] = ("Exit", "종료"),
         ["ui.on"] = ("On", "켜기"),
         ["ui.off"] = ("Off", "끄기"),

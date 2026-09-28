@@ -741,7 +741,7 @@
                                                             <CheckBox Content="{DynamicResource rf.set.alertOnReset}" IsChecked="{Binding NotifyOnReset}" Margin="12,8,0,0" />
                                                         </StackPanel>
                                                         <StackPanel Grid.Column="1" VerticalAlignment="Top">
-                                                            <Button Content="{Binding ScheduleButtonText}" Margin="0,0,0,6"
+                                                            <Button Content="{Binding ScheduleButtonText}" Margin="0,0,0,6" IsEnabled="{Binding HasUsage}"
                                                                     Command="{Binding DataContext.OpenScheduleCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}">
                                                                 <Button.Style>
                                                                     <Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">

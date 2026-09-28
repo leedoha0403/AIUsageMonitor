@@ -30,7 +30,7 @@
             <DropShadowEffect Color="#243039" BlurRadius="34" ShadowDepth="10" Opacity="0.22" />
         </Border.Effect>
         <Border.ContextMenu>
-            <ContextMenu>
+            <ContextMenu Opened="ContextMenu_Opened">
                 <MenuItem Header="{DynamicResource ui.openDashboard}" Click="Open_Click" />
                 <MenuItem Header="{DynamicResource ui.refresh}" Command="{Binding RefreshCommand}" />
                 <Separator />
@@ -49,6 +49,7 @@
                 <MenuItem Header="{DynamicResource ui.hoverOpaque}" IsCheckable="True" IsChecked="{Binding HoverOpaque}" />
                 <Separator />
                 <MenuItem Header="{DynamicResource ui.hide}" Click="Hide_Click" />
+                <MenuItem x:Name="ShowChipsMenuItem" Header="{DynamicResource ui.showChips}" Click="ShowChips_Click" />
                 <MenuItem Header="{DynamicResource ui.exit}" Click="Exit_Click" />
             </ContextMenu>
         </Border.ContextMenu>

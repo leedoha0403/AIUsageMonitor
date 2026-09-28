@@ -20,8 +20,10 @@ public partial class MainWindow : Window
         InitializeComponent();
         _viewModel = new MainViewModel(new StateStore());
         DataContext = _viewModel;
-        _widgetWindow = new WidgetWindow(_viewModel, ShowDashboard, ExitApplication);
-        _chipsWindow = new ChipsWindow(_viewModel, ToggleFlyout, ShowDashboard, ExitApplication);
+        _widgetWindow = new WidgetWindow(_viewModel, ShowDashboard, ExitApplication,
+            () => _viewModel.ShowTaskbarChips = true, IsChipsShown);
+        _chipsWindow = new ChipsWindow(_viewModel, ToggleFlyout, ShowDashboard, ExitApplication,
+            ShowWidget, IsWidgetShown);
         _viewModel.PropertyChanged += ViewModelOnPropertyChanged;
         _viewModel.NotificationRequested += ShowNotification;
 
@@ -77,8 +79,8 @@ public partial class MainWindow : Window
             ThemeService.Changed -= BuildTrayMenu;
             _viewModel.LoginPromptRequested -= ShowLoginPrompt;
             _viewModel.SaveWindowPlacement(Left, Top);
-            _widgetWindow.Close();
-            _chipsWindow.Close();
+            _widgetWindow.CloseForExit();
+            _chipsWindow.CloseForExit();
             _notifyIcon.Visible = false;
             _notifyIcon.Dispose();
         };
@@ -95,6 +97,20 @@ public partial class MainWindow : Window
         }
         _notifyIcon.MouseClick += (_, e) => { if (e.Button == Forms.MouseButtons.Left) Dispatcher.Invoke(ToggleFlyout); };
         Dispatcher.BeginInvoke(() => _ = _viewModel.RefreshAsync(), System.Windows.Threading.DispatcherPriority.Background);
+
+        // At Windows sign-in, monitor/taskbar layout can still be settling when we first place the widget,
+        // occasionally landing it at the wrong spot. Re-apply the saved placement once things have settled.
+        if (App.StartedAtSignIn)
+        {
+            var resettle = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+            resettle.Tick += (_, _) =>
+            {
+                resettle.Stop();
+                if (_widgetWindow.IsShown) _widgetWindow.ShowAtSavedPlacement();
+                if (_chipsWindow.IsVisible) _chipsWindow.ShowChips();
+            };
+            resettle.Start();
+        }
     }
 
     private static System.Drawing.Icon LoadAppIcon(System.Drawing.Size size)
@@ -212,6 +228,9 @@ public partial class MainWindow : Window
     {
         _widgetWindow.ShowAtSavedPlacement();
     }
+
+    private bool IsChipsShown() => _chipsWindow.IsVisible;
+    private bool IsWidgetShown() => _widgetWindow.IsShown;
 
     private void Header_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {

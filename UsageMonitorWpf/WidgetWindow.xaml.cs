@@ -29,6 +29,8 @@ public partial class WidgetWindow : Window
 
     private readonly Action _openDashboard;
     private readonly Action _exitApp;
+    private readonly Action _showChips;
+    private readonly Func<bool> _isChipsShown;
     private readonly MainViewModel _viewModel;
     private readonly HandleWindow _handle = new();
     private readonly DispatcherTimer _hideTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
@@ -42,13 +44,15 @@ public partial class WidgetWindow : Window
     private System.Windows.Point _dragStartCursor;
     private System.Windows.Point _dragStartWindow;
 
-    public WidgetWindow(MainViewModel viewModel, Action openDashboard, Action exitApp)
+    public WidgetWindow(MainViewModel viewModel, Action openDashboard, Action exitApp, Action showChips, Func<bool> isChipsShown)
     {
         InitializeComponent();
         DataContext = viewModel;
         _viewModel = viewModel;
         _openDashboard = openDashboard;
         _exitApp = exitApp;
+        _showChips = showChips;
+        _isChipsShown = isChipsShown;
         WindowOpacity.Attach(this, viewModel);
         _edge = Enum.TryParse<DockEdge>(viewModel.State.WidgetDockEdge, out var edge) ? edge : DockEdge.None;
         _folded = _edge != DockEdge.None && viewModel.State.WidgetFolded;
@@ -72,9 +76,26 @@ public partial class WidgetWindow : Window
             Left = target.X;
             Top = target.Y;
         };
+        // Alt+F4 or an OS close request should only hide the widget (to the tray), like the dashboard's X button.
+        // Only CloseForExit (app shutdown) performs a real close.
+        Closing += (_, e) =>
+        {
+            if (_closingForExit) return;
+            e.Cancel = true;
+            HideWidget();
+        };
         Closed += (_, _) => _handle.Close();
         _viewModel.LanguageChanged += UpdateFoldButton;
         UpdateFoldButton();
+    }
+
+    private bool _closingForExit;
+
+    // Called only when the whole app is shutting down; lets this window actually close.
+    public void CloseForExit()
+    {
+        _closingForExit = true;
+        Close();
     }
 
     // Shows the widget at its saved spot, re-aligned to its docked edge; a folded widget shows only its handle.
@@ -424,6 +445,16 @@ public partial class WidgetWindow : Window
     private void Hide_Click(object sender, RoutedEventArgs e)
     {
         HideWidget();
+    }
+
+    private void ShowChips_Click(object sender, RoutedEventArgs e)
+    {
+        _showChips();
+    }
+
+    private void ContextMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        ShowChipsMenuItem.Visibility = _isChipsShown() ? Visibility.Collapsed : Visibility.Visible;
     }
 
     private void Exit_Click(object sender, RoutedEventArgs e)
