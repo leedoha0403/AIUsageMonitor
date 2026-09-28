@@ -106,6 +106,10 @@ public sealed class UsageProviderState
     public List<ModelUsage> ModelBreakdown { get; set; } = new();
     public DateTimeOffset CollectedAt { get; set; } = DateTimeOffset.Now;
     public DateTimeOffset? LastSuccessAt { get; set; }
+    // Set when a poll observes SessionUsagePercent drop to 0 from a nonzero value: a directly witnessed
+    // reset (manual or automatic), as opposed to Codex's "0% used, resets in 5h" idle placeholder that
+    // never actually had any usage. See SessionWindow.IsActive.
+    public DateTimeOffset? SessionResetObservedAt { get; set; }
     public int ConsecutiveFailures { get; set; }
     public string Message { get; set; } = Loc.Msg("msg.waiting");
     public int LastNotifiedThreshold { get; set; }

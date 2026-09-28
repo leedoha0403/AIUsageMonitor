@@ -25,6 +25,7 @@ public sealed class UsageAggregator
         var failed = false;
         CollectorResult? detailSource = null;
         var now = DateTimeOffset.Now;
+        var previousSessionPercent = account.SessionUsagePercent;
 
         foreach (var definition in provider.Collectors)
         {
@@ -89,6 +90,9 @@ public sealed class UsageAggregator
         account.Source = session?.Source ?? "Manual";
         account.Confidence = session?.Confidence ?? "Low";
         account.CollectedAt = now;
+        // A drop to 0% from nonzero is a window boundary we actually witnessed (manual reset, our own
+        // scheduled refresh, or real usage rolling into a new window) — not the idle placeholder.
+        if (previousSessionPercent > 0 && account.SessionUsagePercent == 0) account.SessionResetObservedAt = now;
 
         if (detailSource != null)
         {

@@ -12,7 +12,13 @@ public static class SessionWindow
     {
         var reset = account.SessionResetAt;
         if (reset <= now) return false;
-        if (account.SessionUsagePercent == 0 && reset - now >= Length - IdleTolerance) return false;
+        if (account.SessionUsagePercent == 0 && reset - now >= Length - IdleTolerance)
+        {
+            // Looks identical to the idle placeholder, but if we directly witnessed usage drop to 0%
+            // (a real reset, manual or automatic) within this window's length, trust that instead.
+            var confirmedByObservedReset = account.SessionResetObservedAt is { } obs && now < obs + Length;
+            if (!confirmedByObservedReset) return false;
+        }
         return true;
     }
 
