@@ -46,7 +46,6 @@ public sealed class MainViewModel : ObservableObject
     private string _historyChartMode;
     private string _thresholdsText;
     private IReadOnlyList<ChartSeries> _chartSeries = [];
-    private IReadOnlyList<ChartSeries> _weeklyChartSeries = [];
     private bool _isRefreshing;
     private int _tick;
     private ProviderViewModel? _selectedAccount;
@@ -729,26 +728,24 @@ public sealed class MainViewModel : ObservableObject
             if (value == null || !ChartModes.Contains(value) || !Set(ref _historyChartMode, value)) return;
             State.Settings.HistoryChartMode = value;
             SaveStateOnly();
-            OnPropertyChanged(nameof(ShowSessionChart));
-            OnPropertyChanged(nameof(ShowWeeklyChart));
+            OnPropertyChanged(nameof(HistoryChartDescription));
+            BuildHistoryChart();
         }
     }
 
-    public bool ShowSessionChart => _historyChartMode != "Weekly";
-    public bool ShowWeeklyChart => _historyChartMode != "Session";
+    public string HistoryChartDescription => _historyChartMode switch
+    {
+        "Session" => Loc.T("ui.usageHistoryDesc"),
+        "Weekly" => Loc.T("ui.weeklyUsageHistoryDesc"),
+        _ => Loc.T("ui.combinedUsageHistoryDesc")
+    };
 
+    // The lines actually drawn: 5H only, weekly only, or both together (weekly dashed) in one chart,
+    // depending on HistoryChartMode.
     public IReadOnlyList<ChartSeries> ChartSeries
     {
         get => _chartSeries;
         private set => Set(ref _chartSeries, value);
-    }
-
-    // Weekly (or monthly, for providers whose long window is Monthly) usage over time, regardless of
-    // whether the provider also has a 5H window — unlike ChartSeries, which shows the 5H window when one exists.
-    public IReadOnlyList<ChartSeries> WeeklyChartSeries
-    {
-        get => _weeklyChartSeries;
-        private set => Set(ref _weeklyChartSeries, value);
     }
 
     public bool IsRefreshing
@@ -1216,22 +1213,39 @@ public sealed class MainViewModel : ObservableObject
     {
         var history = _store.LoadHistory();
         var since = DateTimeOffset.Now - ChartRange - ChartRange;
-        ChartSeries = DashboardProviders.Select(p => new ChartSeries
+
+        List<(DateTimeOffset, double)> PointsFor(ProviderViewModel p, Func<UsageSnapshot, int> value) =>
+            history.Where(x => x.EffectiveKey == p.AccountKey && x.Timestamp >= since)
+                .Select(x => (x.Timestamp, (double)value(x)))
+                .ToList();
+
+        var series = new List<ChartSeries>();
+        foreach (var p in DashboardProviders)
         {
-            Name = p.Title,
-            Brush = p.SeriesBrush,
-            Points = history.Where(x => x.EffectiveKey == p.AccountKey && x.Timestamp >= since)
-                .Select(x => (x.Timestamp, (double)(p.HasSessionWindow ? x.SessionUsagePercent : x.WeeklyUsagePercent)))
-                .ToList()
-        }).ToList();
-        WeeklyChartSeries = DashboardProviders.Select(p => new ChartSeries
-        {
-            Name = p.Title,
-            Brush = p.SeriesBrush,
-            Points = history.Where(x => x.EffectiveKey == p.AccountKey && x.Timestamp >= since)
-                .Select(x => (x.Timestamp, (double)x.WeeklyUsagePercent))
-                .ToList()
-        }).ToList();
+            switch (_historyChartMode)
+            {
+                case "Weekly":
+                    series.Add(new ChartSeries { Name = p.Title, Brush = p.SeriesBrush, Points = PointsFor(p, x => x.WeeklyUsagePercent) });
+                    break;
+                case "Session":
+                    series.Add(new ChartSeries { Name = p.Title, Brush = p.SeriesBrush, Points = PointsFor(p, x => p.HasSessionWindow ? x.SessionUsagePercent : x.WeeklyUsagePercent) });
+                    break;
+                default: // Combined: each provider's primary line, plus a dashed weekly line when it also has a 5H window.
+                    series.Add(new ChartSeries { Name = p.Title, Brush = p.SeriesBrush, Points = PointsFor(p, x => p.HasSessionWindow ? x.SessionUsagePercent : x.WeeklyUsagePercent) });
+                    if (p.HasSessionWindow)
+                    {
+                        series.Add(new ChartSeries
+                        {
+                            Name = Loc.T("ui.weeklySeriesLabel", p.Title),
+                            Brush = p.SeriesBrush,
+                            Dashed = true,
+                            Points = PointsFor(p, x => x.WeeklyUsagePercent)
+                        });
+                    }
+                    break;
+            }
+        }
+        ChartSeries = series;
     }
 
     private void OnLanguageChanged()
@@ -1242,7 +1256,7 @@ public sealed class MainViewModel : ObservableObject
             option.Refresh();
         }
         foreach (var option in PreNotifyOptions.Concat(RetryIntervalOptions).Concat(RetryMaxOptions)) option.Refresh();
-        foreach (var name in new[] { nameof(AppTitle), nameof(AppSubtitle), nameof(FetchWarning), nameof(DisplayUsageLabel), nameof(CollectionLevelLabel), nameof(RefreshLogText) })
+        foreach (var name in new[] { nameof(AppTitle), nameof(AppSubtitle), nameof(FetchWarning), nameof(DisplayUsageLabel), nameof(CollectionLevelLabel), nameof(RefreshLogText), nameof(HistoryChartDescription) })
         {
             OnPropertyChanged(name);
         }

@@ -9,6 +9,8 @@ public sealed class ChartSeries
     public string Name { get; init; } = "";
     public System.Windows.Media.Brush Brush { get; init; } = System.Windows.Media.Brushes.Gray;
     public List<(DateTimeOffset At, double Value)> Points { get; init; } = new();
+    // Used in the combined view to tell a provider's weekly line apart from its 5H line without a second chart.
+    public bool Dashed { get; init; }
 }
 
 // Lightweight line chart (0-100%) drawn directly with DrawingContext; no charting dependency.
@@ -99,6 +101,7 @@ public sealed class HistoryChart : FrameworkElement
             if (points.Count == 0) continue;
 
             var pen = new System.Windows.Media.Pen(series.Brush, 2) { LineJoin = PenLineJoin.Round };
+            if (series.Dashed) pen.DashStyle = new DashStyle(new double[] { 3, 2 }, 0);
             pen.Freeze();
             var geometry = new StreamGeometry();
             using (var ctx = geometry.Open())
