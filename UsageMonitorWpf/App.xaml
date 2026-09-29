@@ -123,37 +123,6 @@
             <Setter Property="Foreground" Value="{DynamicResource MutedBrush}" />
         </Style>
 
-        <!-- One segment of a segmented control: a RadioButton so only one in its GroupName stays pressed,
-             styled to look like a flat toggle button instead of the usual radio dot. -->
-        <Style x:Key="SegmentButton" TargetType="RadioButton">
-            <Setter Property="Padding" Value="10,5" />
-            <Setter Property="Foreground" Value="{DynamicResource MutedBrush}" />
-            <Setter Property="Cursor" Value="Hand" />
-            <Setter Property="FontSize" Value="12" />
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="RadioButton">
-                        <Border x:Name="Chrome" CornerRadius="5" Background="Transparent" Padding="{TemplateBinding Padding}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <MultiTrigger>
-                                <MultiTrigger.Conditions>
-                                    <Condition Property="IsMouseOver" Value="True" />
-                                    <Condition Property="IsChecked" Value="False" />
-                                </MultiTrigger.Conditions>
-                                <Setter Property="Foreground" Value="{DynamicResource InkBrush}" />
-                            </MultiTrigger>
-                            <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Chrome" Property="Background" Value="{DynamicResource AccentBrush}" />
-                                <Setter Property="Foreground" Value="{DynamicResource PanelBrush}" />
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
         <Style TargetType="TextBox">
             <Setter Property="MinHeight" Value="32" />
             <Setter Property="Padding" Value="8,5" />

@@ -111,8 +111,7 @@ public sealed class HistoryChart : FrameworkElement
 
         if (Areas != null)
         {
-            var dividerPen = new System.Windows.Media.Pen(Foreground, 1) { DashStyle = DashStyles.Dot };
-            dividerPen.Freeze();
+            const double gap = 3; // px of visible separation between adjacent session blocks
             foreach (var area in Areas)
             {
                 var points = area.Points.Where(p => p.At >= start).OrderBy(p => p.At).ToList();
@@ -120,28 +119,53 @@ public sealed class HistoryChart : FrameworkElement
                 if (before != default) points.Insert(0, (start, before.Value));
                 if (points.Count == 0) continue;
 
-                var fillGeometry = new StreamGeometry();
-                using (var ctx = fillGeometry.Open())
+                double ValueAt(DateTimeOffset t)
                 {
-                    ctx.BeginFigure(new System.Windows.Point(X(points[0].At), top + height), true, true);
-                    ctx.LineTo(new System.Windows.Point(X(points[0].At), Y(points[0].Value)), true, true);
-                    for (var i = 1; i < points.Count; i++)
+                    var last = default((DateTimeOffset At, double Value));
+                    var found = false;
+                    foreach (var p in points)
                     {
-                        ctx.LineTo(new System.Windows.Point(X(points[i].At), Y(points[i - 1].Value)), true, true);
-                        ctx.LineTo(new System.Windows.Point(X(points[i].At), Y(points[i].Value)), true, true);
+                        if (p.At > t) break;
+                        last = p;
+                        found = true;
                     }
-                    var endX = X(end);
-                    ctx.LineTo(new System.Windows.Point(endX, Y(points[^1].Value)), true, true);
-                    ctx.LineTo(new System.Windows.Point(endX, top + height), true, true);
+                    return found ? last.Value : points[0].Value;
                 }
-                fillGeometry.Freeze();
-                dc.DrawGeometry(area.Fill, null, fillGeometry);
 
-                foreach (var boundary in area.Boundaries.Where(b => b >= start && b <= end))
+                var strokeColor = area.Fill is System.Windows.Media.SolidColorBrush scb
+                    ? System.Windows.Media.Color.FromArgb(255, scb.Color.R, scb.Color.G, scb.Color.B)
+                    : Colors.Gray;
+                var stroke = new System.Windows.Media.SolidColorBrush(strokeColor);
+                stroke.Freeze();
+                var strokePen = new System.Windows.Media.Pen(stroke, 1.25);
+                strokePen.Freeze();
+
+                // Each session becomes its own trapezoid block (flat base, rising/falling top edge from its
+                // start value to its end value), with a visible gap and outline so blocks read as separate
+                // pieces instead of one continuous fill.
+                var cuts = new List<DateTimeOffset> { start };
+                cuts.AddRange(area.Boundaries.Where(b => b > start && b < end).OrderBy(b => b));
+                cuts.Add(end);
+
+                for (var i = 0; i < cuts.Count - 1; i++)
                 {
-                    var valueAt = points.LastOrDefault(p => p.At <= boundary).Value;
-                    var x = X(boundary);
-                    dc.DrawLine(dividerPen, new System.Windows.Point(x, Y(valueAt)), new System.Windows.Point(x, top + height));
+                    var x0 = X(cuts[i]) + (i == 0 ? 0 : gap / 2);
+                    var x1 = X(cuts[i + 1]) - (i == cuts.Count - 2 ? 0 : gap / 2);
+                    if (x1 <= x0) continue;
+
+                    var y0 = Y(ValueAt(cuts[i]));
+                    var y1 = Y(ValueAt(cuts[i + 1]));
+
+                    var blockGeometry = new StreamGeometry();
+                    using (var ctx = blockGeometry.Open())
+                    {
+                        ctx.BeginFigure(new System.Windows.Point(x0, top + height), true, true);
+                        ctx.LineTo(new System.Windows.Point(x0, y0), true, true);
+                        ctx.LineTo(new System.Windows.Point(x1, y1), true, true);
+                        ctx.LineTo(new System.Windows.Point(x1, top + height), true, true);
+                    }
+                    blockGeometry.Freeze();
+                    dc.DrawGeometry(area.Fill, strokePen, blockGeometry);
                 }
             }
         }

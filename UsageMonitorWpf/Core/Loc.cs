@@ -40,9 +40,7 @@ public static class Loc
         ["ui.fieldSources"] = ("Field sources", "필드별 출처"),
         // History
         ["ui.usageHistory"] = ("Usage History", "사용량 기록"),
-        ["ui.usageHistoryDesc"] = ("5H usage per account (Copilot: monthly), stored locally for 30 days.", "계정별 5시간 사용량(Copilot은 월간)을 로컬에 30일간 보관합니다."),
-        ["ui.weeklyUsageHistory"] = ("Cumulative usage", "누적 사용량 기록"),
-        ["ui.weeklyUsageHistoryDesc"] = ("Solid = 5H (or own) usage. Filled = cumulative usage so far, split at each 5H session boundary.", "실선은 5시간(또는 자체) 사용량이고, 채워진 영역은 5시간 세션 경계마다 나뉜 누적 사용량입니다."),
+        ["ui.weeklyUsageHistoryDesc"] = ("Cumulative usage per account, split into one block per 5H session.", "계정별 누적 사용량을 5시간 세션 하나당 한 블록씩 나눠서 보여줍니다."),
         ["ui.resetTimeline"] = ("Reset timeline (current window)", "리셋 타임라인 (현재 윈도우)"),
         ["ui.resetHistory"] = ("Reset history (7 days)", "리셋 기록 (최근 7일)"),
         // Accounts
@@ -177,8 +175,6 @@ public static class Loc
         ["opt.Custom"] = ("Custom", "Custom"),
         ["opt.Remaining"] = ("Remaining", "남은 양"),
         ["opt.Used"] = ("Used", "사용한 양"),
-        ["opt.Session"] = ("Session usage", "시간 사용량"),
-        ["opt.Weekly"] = ("Cumulative usage", "누적 사용량"),
         ["opt.Safe"] = ("Safe", "Safe (로컬만)"),
         ["opt.Standard"] = ("Standard", "Standard (공식 조회)"),
         ["opt.Deep"] = ("Deep", "Deep (확장 탐색)"),
