@@ -41,6 +41,8 @@ public static class Loc
         // History
         ["ui.usageHistory"] = ("Usage History", "사용량 기록"),
         ["ui.usageHistoryDesc"] = ("5H usage per account (Copilot: monthly), stored locally for 30 days.", "계정별 5시간 사용량(Copilot은 월간)을 로컬에 30일간 보관합니다."),
+        ["ui.weeklyUsageHistory"] = ("Weekly usage", "주간 사용량 기록"),
+        ["ui.weeklyUsageHistoryDesc"] = ("Weekly usage per account against its own reset cycle.", "계정별 주간 사용량을 리셋 주기 대비로 보여줍니다."),
         ["ui.resetTimeline"] = ("Reset timeline (current window)", "리셋 타임라인 (현재 윈도우)"),
         ["ui.resetHistory"] = ("Reset history (7 days)", "리셋 기록 (최근 7일)"),
         // Accounts

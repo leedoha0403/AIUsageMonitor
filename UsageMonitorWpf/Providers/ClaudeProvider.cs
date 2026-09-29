@@ -58,12 +58,10 @@ public sealed class ClaudeOAuthUsageCollector : IUsageCollector
             }
             token = tokenElement.GetString()!;
             if (oauth.TryGetProperty("subscriptionType", out var sub) && sub.ValueKind == JsonValueKind.String) plan = sub.GetString();
-            if (oauth.TryGetProperty("expiresAt", out var exp) && exp.TryGetInt64(out var expMs) &&
-                DateTimeOffset.FromUnixTimeMilliseconds(expMs) <= DateTimeOffset.Now)
-            {
-                // Refreshing would rotate the CLI's tokens; leave that to the CLI.
-                return CollectorResult.SignedOut(Loc.Msg("msg.claudeExpired"), Loc.Msg("msg.credential", found.Label));
-            }
+            // Do not pre-judge by expiresAt: the CLI refreshes this access token in the background well
+            // before it is actually rejected, so a locally-computed "expired" timestamp is often stale by
+            // the time we read it and would falsely report "signed out" on a perfectly valid login. Let the
+            // server's real 401/403 response below decide instead.
         }
         catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
         {

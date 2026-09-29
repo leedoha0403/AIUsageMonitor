@@ -43,6 +43,7 @@ public sealed class MainViewModel : ObservableObject
     private string _historyRange;
     private string _thresholdsText;
     private IReadOnlyList<ChartSeries> _chartSeries = [];
+    private IReadOnlyList<ChartSeries> _weeklyChartSeries = [];
     private bool _isRefreshing;
     private int _tick;
     private ProviderViewModel? _selectedAccount;
@@ -721,6 +722,14 @@ public sealed class MainViewModel : ObservableObject
         private set => Set(ref _chartSeries, value);
     }
 
+    // Weekly (or monthly, for providers whose long window is Monthly) usage over time, regardless of
+    // whether the provider also has a 5H window — unlike ChartSeries, which shows the 5H window when one exists.
+    public IReadOnlyList<ChartSeries> WeeklyChartSeries
+    {
+        get => _weeklyChartSeries;
+        private set => Set(ref _weeklyChartSeries, value);
+    }
+
     public bool IsRefreshing
     {
         get => _isRefreshing;
@@ -1192,6 +1201,14 @@ public sealed class MainViewModel : ObservableObject
             Brush = p.SeriesBrush,
             Points = history.Where(x => x.EffectiveKey == p.AccountKey && x.Timestamp >= since)
                 .Select(x => (x.Timestamp, (double)(p.HasSessionWindow ? x.SessionUsagePercent : x.WeeklyUsagePercent)))
+                .ToList()
+        }).ToList();
+        WeeklyChartSeries = DashboardProviders.Select(p => new ChartSeries
+        {
+            Name = p.Title,
+            Brush = p.SeriesBrush,
+            Points = history.Where(x => x.EffectiveKey == p.AccountKey && x.Timestamp >= since)
+                .Select(x => (x.Timestamp, (double)x.WeeklyUsagePercent))
                 .ToList()
         }).ToList();
     }

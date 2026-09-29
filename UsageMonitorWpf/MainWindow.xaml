@@ -409,6 +409,33 @@
                                 </StackPanel>
                             </Border>
 
+                            <TextBlock Text="{DynamicResource ui.weeklyUsageHistory}" Style="{StaticResource SectionTitle}" Margin="0,10,0,0" />
+                            <TextBlock Text="{DynamicResource ui.weeklyUsageHistoryDesc}" Style="{StaticResource Muted}" Margin="0,5,0,0" />
+                            <Border Style="{StaticResource Card}" Margin="0,14,0,14">
+                                <StackPanel>
+                                    <controls:HistoryChart Height="210"
+                                                           Series="{Binding WeeklyChartSeries}"
+                                                           Range="{Binding ChartRange}"
+                                                           Foreground="{DynamicResource MutedBrush}"
+                                                           GridBrush="{DynamicResource LineBrush}" />
+                                    <ItemsControl ItemsSource="{Binding DashboardProviders}" Margin="36,10,0,0">
+                                        <ItemsControl.ItemsPanel>
+                                            <ItemsPanelTemplate>
+                                                <WrapPanel />
+                                            </ItemsPanelTemplate>
+                                        </ItemsControl.ItemsPanel>
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
+                                                    <Rectangle Width="14" Height="3" Fill="{Binding SeriesBrush}" VerticalAlignment="Center" Margin="0,0,6,0" />
+                                                    <TextBlock Text="{Binding Title}" FontSize="12" />
+                                                </StackPanel>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
                             <ItemsControl ItemsSource="{Binding DashboardProviders}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
