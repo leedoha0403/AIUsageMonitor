@@ -40,6 +40,7 @@ public static class Loc
         ["ui.fieldSources"] = ("Field sources", "필드별 출처"),
         // History
         ["ui.usageHistory"] = ("Usage History", "사용량 기록"),
+        ["ui.usageHistoryDesc"] = ("5H (or own) usage per account.", "계정별 5시간(또는 자체) 사용량입니다."),
         ["ui.weeklyUsageHistoryDesc"] = ("Cumulative usage per account, split into one block per 5H session.", "계정별 누적 사용량을 5시간 세션 하나당 한 블록씩 나눠서 보여줍니다."),
         ["ui.resetTimeline"] = ("Reset timeline (current window)", "리셋 타임라인 (현재 윈도우)"),
         ["ui.resetHistory"] = ("Reset history (7 days)", "리셋 기록 (최근 7일)"),
@@ -173,6 +174,8 @@ public static class Loc
         ["opt.Light"] = ("Light", "라이트"),
         ["opt.Dark"] = ("Dark", "다크"),
         ["opt.Custom"] = ("Custom", "Custom"),
+        ["opt.Session"] = ("Session usage", "시간 사용량"),
+        ["opt.Weekly"] = ("Cumulative usage", "누적 사용량"),
         ["opt.Remaining"] = ("Remaining", "남은 양"),
         ["opt.Used"] = ("Used", "사용한 양"),
         ["opt.Safe"] = ("Safe", "Safe (로컬만)"),

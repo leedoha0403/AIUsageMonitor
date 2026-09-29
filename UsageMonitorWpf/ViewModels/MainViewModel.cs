@@ -26,6 +26,8 @@ public sealed class MainViewModel : ObservableObject
         ["30D"] = TimeSpan.FromDays(30)
     };
 
+    private static readonly string[] ChartModes = ["Session", "Weekly"];
+
     private readonly StateStore _store;
     private readonly UsageAggregator _aggregator = new();
     private readonly DispatcherTimer _countdownTimer = new();
@@ -41,6 +43,7 @@ public sealed class MainViewModel : ObservableObject
     private int _refreshSeconds;
     private bool _alwaysOnTop;
     private string _historyRange;
+    private string _historyChartMode;
     private string _thresholdsText;
     private IReadOnlyList<ChartSeries> _chartSeries = [];
     private IReadOnlyList<ChartArea> _chartAreas = [];
@@ -77,6 +80,7 @@ public sealed class MainViewModel : ObservableObject
         _refreshSeconds = State.Settings.RefreshSeconds;
         _alwaysOnTop = State.Settings.AlwaysOnTop;
         _historyRange = RangeSpans.ContainsKey(State.Settings.HistoryRange) ? State.Settings.HistoryRange : "1D";
+        _historyChartMode = ChartModes.Contains(State.Settings.HistoryChartMode) ? State.Settings.HistoryChartMode : "Session";
         _thresholdsText = string.Join(", ", State.Settings.NotificationThresholds);
         RebuildProviders();
 
@@ -113,6 +117,7 @@ public sealed class MainViewModel : ObservableObject
             OnRefreshStateChanged);
         CancelScheduleCommand = new ParamCommand(p => { if (p is ProviderViewModel vm) { _scheduler.Cancel(vm.State); } });
         RetryRefreshCommand = new ParamCommand(p => { if (p is ProviderViewModel vm) { _scheduler.Retry(vm.State); _ = _scheduler.TickAsync(DateTimeOffset.Now); } });
+        SetHistoryChartModeCommand = new ParamCommand(p => { if (p is string mode) HistoryChartMode = mode; });
         ProviderViewModel.RetryMaxForDisplay = State.Settings.Refresh.RetryMax;
         _schedulerTimer.Tick += (_, _) => _ = _scheduler.TickAsync(DateTimeOffset.Now);
         _schedulerTimer.Start();
@@ -716,14 +721,38 @@ public sealed class MainViewModel : ObservableObject
 
     public TimeSpan ChartRange => RangeSpans[_historyRange];
 
-    // Legend data only (Name + Brush per provider) — the chart itself only draws ChartAreas now.
+    public string HistoryChartMode
+    {
+        get => _historyChartMode;
+        set
+        {
+            if (value == null || !ChartModes.Contains(value) || !Set(ref _historyChartMode, value)) return;
+            State.Settings.HistoryChartMode = value;
+            SaveStateOnly();
+            OnPropertyChanged(nameof(HistoryChartDescription));
+            OnPropertyChanged(nameof(IsSessionChartMode));
+            OnPropertyChanged(nameof(IsCumulativeChartMode));
+            BuildHistoryChart();
+        }
+    }
+
+    // One-click segmented selector for HistoryChartMode (see MainWindow.xaml SegmentButton), instead of a
+    // dropdown that needs opening first.
+    public ICommand SetHistoryChartModeCommand { get; }
+    public bool IsSessionChartMode => _historyChartMode == "Session";
+    public bool IsCumulativeChartMode => _historyChartMode == "Weekly";
+
+    public string HistoryChartDescription => _historyChartMode == "Session" ? Loc.T("ui.usageHistoryDesc") : Loc.T("ui.weeklyUsageHistoryDesc");
+
+    // The 5H (or own) usage line per provider — only drawn while in Session mode.
     public IReadOnlyList<ChartSeries> ChartSeries
     {
         get => _chartSeries;
         private set => Set(ref _chartSeries, value);
     }
 
-    // Cumulative usage, filled and split into one block per 5H session, per provider.
+    // Cumulative usage, filled and split into one block per 5H session, per provider — only built in
+    // Weekly/cumulative mode.
     public IReadOnlyList<ChartArea> ChartAreas
     {
         get => _chartAreas;
@@ -1205,7 +1234,7 @@ public sealed class MainViewModel : ObservableObject
         var areas = new List<ChartArea>();
         foreach (var p in DashboardProviders)
         {
-            // Legend swatch only — the chart itself draws ChartAreas, not this line.
+            // 5H (or own) usage line — drawn in Session mode, and always available for that card's legend.
             series.Add(new ChartSeries { Name = p.Title, Brush = p.SeriesBrush, Points = PointsFor(p, x => p.HasSessionWindow ? x.SessionUsagePercent : x.WeeklyUsagePercent) });
 
             // Cumulative usage, filled and split into one block per 5H session (providers without a 5H
@@ -1257,7 +1286,7 @@ public sealed class MainViewModel : ObservableObject
             option.Refresh();
         }
         foreach (var option in PreNotifyOptions.Concat(RetryIntervalOptions).Concat(RetryMaxOptions)) option.Refresh();
-        foreach (var name in new[] { nameof(AppTitle), nameof(AppSubtitle), nameof(FetchWarning), nameof(DisplayUsageLabel), nameof(CollectionLevelLabel), nameof(RefreshLogText) })
+        foreach (var name in new[] { nameof(AppTitle), nameof(AppSubtitle), nameof(FetchWarning), nameof(DisplayUsageLabel), nameof(CollectionLevelLabel), nameof(RefreshLogText), nameof(HistoryChartDescription) })
         {
             OnPropertyChanged(name);
         }

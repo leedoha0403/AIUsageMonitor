@@ -38,6 +38,7 @@ public sealed class StateStore
             state.Settings.DisplayUsageAs = string.IsNullOrWhiteSpace(state.Settings.DisplayUsageAs) ? defaults.DisplayUsageAs : state.Settings.DisplayUsageAs;
             state.Settings.CollectionLevel = string.IsNullOrWhiteSpace(state.Settings.CollectionLevel) ? defaults.CollectionLevel : state.Settings.CollectionLevel;
             state.Settings.HistoryRange = string.IsNullOrWhiteSpace(state.Settings.HistoryRange) ? defaults.HistoryRange : state.Settings.HistoryRange;
+            state.Settings.HistoryChartMode = string.IsNullOrWhiteSpace(state.Settings.HistoryChartMode) ? defaults.HistoryChartMode : state.Settings.HistoryChartMode;
             if (state.Settings.NotificationThresholds is not { Count: > 0 }) state.Settings.NotificationThresholds = defaults.NotificationThresholds;
             state.Settings.CustomTheme ??= defaults.CustomTheme;
             state.Settings.CustomThemePresets ??= new();

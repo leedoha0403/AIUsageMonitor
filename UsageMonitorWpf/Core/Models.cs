@@ -36,6 +36,7 @@ public sealed class AppSettings
     public bool NotificationsEnabled { get; set; } = true;
     public bool ShowTaskbarChips { get; set; } = true;
     public string HistoryRange { get; set; } = "1D";
+    public string HistoryChartMode { get; set; } = "Session";
     public double WidgetOpacity { get; set; } = 1.0;
     public double ChipsOpacity { get; set; } = 1.0;
     public bool HoverOpaque { get; set; } = true;
