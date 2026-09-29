@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Input;
 using System.ComponentModel;
+using UsageMonitorWpf.Controls;
 using UsageMonitorWpf.Core;
 using UsageMonitorWpf.Storage;
 using UsageMonitorWpf.ViewModels;
@@ -231,6 +232,18 @@ public partial class MainWindow : Window
 
     private bool IsChipsShown() => _chipsWindow.IsVisible;
     private bool IsWidgetShown() => _widgetWindow.IsShown;
+
+    private void LegendItem_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        _viewModel.HighlightedSeriesName = sender switch
+        {
+            FrameworkElement { DataContext: ChartSeries series } => series.Name,
+            FrameworkElement { DataContext: ChartArea area } => area.Name,
+            _ => null
+        };
+    }
+
+    private void LegendItem_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e) => _viewModel.HighlightedSeriesName = null;
 
     private void Header_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {

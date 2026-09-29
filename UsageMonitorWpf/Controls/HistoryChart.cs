@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Windows;
 using System.Windows.Media;
+using System.Windows.Media.Animation;
 
 namespace UsageMonitorWpf.Controls;
 
@@ -34,7 +35,27 @@ public sealed class HistoryChart : FrameworkElement
 
     public static readonly DependencyProperty RangeProperty = DependencyProperty.Register(
         nameof(Range), typeof(TimeSpan), typeof(HistoryChart),
-        new FrameworkPropertyMetadata(TimeSpan.FromDays(1), FrameworkPropertyMetadataOptions.AffectsRender));
+        new FrameworkPropertyMetadata(TimeSpan.FromDays(1), FrameworkPropertyMetadataOptions.AffectsRender, OnRangeChanged));
+
+    // The actually-drawn time window, eased toward Range whenever it changes so picking a different
+    // date range zooms/pans smoothly instead of jumping straight to the new window.
+    private static readonly DependencyProperty AnimatedRangeSecondsProperty = DependencyProperty.Register(
+        "AnimatedRangeSeconds", typeof(double), typeof(HistoryChart),
+        new FrameworkPropertyMetadata(TimeSpan.FromDays(1).TotalSeconds, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    private double AnimatedRangeSeconds => (double)GetValue(AnimatedRangeSecondsProperty);
+
+    private static void OnRangeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var chart = (HistoryChart)d;
+        var from = chart.AnimatedRangeSeconds > 0 ? chart.AnimatedRangeSeconds : ((TimeSpan)e.OldValue).TotalSeconds;
+        var to = ((TimeSpan)e.NewValue).TotalSeconds;
+        var animation = new DoubleAnimation(from, to, new Duration(TimeSpan.FromMilliseconds(350)))
+        {
+            EasingFunction = new CubicEase { EasingMode = EasingMode.EaseOut }
+        };
+        chart.BeginAnimation(AnimatedRangeSecondsProperty, animation);
+    }
 
     public static readonly DependencyProperty ForegroundProperty = DependencyProperty.Register(
         nameof(Foreground), typeof(System.Windows.Media.Brush), typeof(HistoryChart),
@@ -43,6 +64,18 @@ public sealed class HistoryChart : FrameworkElement
     public static readonly DependencyProperty GridBrushProperty = DependencyProperty.Register(
         nameof(GridBrush), typeof(System.Windows.Media.Brush), typeof(HistoryChart),
         new FrameworkPropertyMetadata(System.Windows.Media.Brushes.LightGray, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    // When set to a Series/Area Name, that one is drawn last (on top) and at full strength while every
+    // other one is faded, so hovering a legend entry calls out just that provider.
+    public static readonly DependencyProperty HighlightedNameProperty = DependencyProperty.Register(
+        nameof(HighlightedName), typeof(string), typeof(HistoryChart),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public string? HighlightedName
+    {
+        get => (string?)GetValue(HighlightedNameProperty);
+        set => SetValue(HighlightedNameProperty, value);
+    }
 
     public IReadOnlyList<ChartSeries>? Series
     {
@@ -95,14 +128,16 @@ public sealed class HistoryChart : FrameworkElement
             dc.DrawText(label, new System.Windows.Point(left - 6 - label.Width, y - label.Height / 2));
         }
 
+        // Animate toward Range instead of jumping straight to it, so switching date ranges pans/zooms smoothly.
+        var animatedRange = TimeSpan.FromSeconds(AnimatedRangeSeconds);
         var end = DateTimeOffset.Now;
-        var start = end - Range;
-        double X(DateTimeOffset t) => left + width * Math.Clamp((t - start).TotalSeconds / Range.TotalSeconds, 0, 1);
+        var start = end - animatedRange;
+        double X(DateTimeOffset t) => left + width * Math.Clamp((t - start).TotalSeconds / animatedRange.TotalSeconds, 0, 1);
         double Y(double v) => top + height * (1 - Math.Clamp(v, 0, 100) / 100.0);
 
         for (var i = 0; i <= 4; i++)
         {
-            var t = start + TimeSpan.FromTicks(Range.Ticks * i / 4);
+            var t = start + TimeSpan.FromTicks(animatedRange.Ticks * i / 4);
             var format = Range <= TimeSpan.FromDays(1) ? "HH:mm" : "MM-dd";
             var label = new FormattedText(t.ToLocalTime().ToString(format), CultureInfo.CurrentCulture, System.Windows.FlowDirection.LeftToRight, typeface, 10, Foreground, dpi);
             var x = Math.Clamp(X(t) - label.Width / 2, left, left + width - label.Width);
@@ -112,7 +147,8 @@ public sealed class HistoryChart : FrameworkElement
         if (Areas != null)
         {
             const double gap = 3; // px of visible separation between adjacent session blocks
-            foreach (var area in Areas)
+            // The highlighted one (if any) is drawn last, on top of the rest, which are faded.
+            foreach (var area in Areas.OrderBy(a => a.Name == HighlightedName ? 1 : 0))
             {
                 var points = area.Points.Where(p => p.At >= start).OrderBy(p => p.At).ToList();
                 var before = area.Points.Where(p => p.At < start).OrderBy(p => p.At).LastOrDefault();
@@ -132,12 +168,15 @@ public sealed class HistoryChart : FrameworkElement
                     return found ? last.Value : points[0].Value;
                 }
 
+                var faded = HighlightedName != null && area.Name != HighlightedName;
+                var fill = faded ? Fade(area.Fill, 0.25) : area.Fill;
+
                 var strokeColor = area.Fill is System.Windows.Media.SolidColorBrush scb
                     ? System.Windows.Media.Color.FromArgb(255, scb.Color.R, scb.Color.G, scb.Color.B)
                     : Colors.Gray;
                 var stroke = new System.Windows.Media.SolidColorBrush(strokeColor);
                 stroke.Freeze();
-                var strokePen = new System.Windows.Media.Pen(stroke, 1.25);
+                var strokePen = new System.Windows.Media.Pen(faded ? Fade(stroke, 0.35) : stroke, 1.25);
                 strokePen.Freeze();
 
                 // Each session becomes its own trapezoid block (flat base, rising/falling top edge from its
@@ -165,13 +204,14 @@ public sealed class HistoryChart : FrameworkElement
                         ctx.LineTo(new System.Windows.Point(x1, top + height), true, true);
                     }
                     blockGeometry.Freeze();
-                    dc.DrawGeometry(area.Fill, strokePen, blockGeometry);
+                    dc.DrawGeometry(fill, strokePen, blockGeometry);
                 }
             }
         }
 
         if (Series == null) return;
-        foreach (var series in Series)
+        // The highlighted one (if any) is drawn last, on top of the rest, which are faded.
+        foreach (var series in Series.OrderBy(s => s.Name == HighlightedName ? 1 : 0))
         {
             var points = series.Points.Where(p => p.At >= start).OrderBy(p => p.At).ToList();
             // Carry the last value from before the range so lines start at the left edge.
@@ -179,7 +219,9 @@ public sealed class HistoryChart : FrameworkElement
             if (before != default) points.Insert(0, (start, before.Value));
             if (points.Count == 0) continue;
 
-            var pen = new System.Windows.Media.Pen(series.Brush, 2) { LineJoin = PenLineJoin.Round };
+            var faded = HighlightedName != null && series.Name != HighlightedName;
+            var brush = faded ? Fade(series.Brush, 0.25) : series.Brush;
+            var pen = new System.Windows.Media.Pen(brush, faded ? 1.5 : 2.5) { LineJoin = PenLineJoin.Round };
             pen.Freeze();
             var geometry = new StreamGeometry();
             using (var ctx = geometry.Open())
@@ -195,7 +237,15 @@ public sealed class HistoryChart : FrameworkElement
             }
             geometry.Freeze();
             dc.DrawGeometry(null, pen, geometry);
-            dc.DrawEllipse(series.Brush, null, new System.Windows.Point(X(end), Y(points[^1].Value)), 3, 3);
+            dc.DrawEllipse(brush, null, new System.Windows.Point(X(end), Y(points[^1].Value)), faded ? 2.5 : 3.5, faded ? 2.5 : 3.5);
         }
+    }
+
+    private static System.Windows.Media.Brush Fade(System.Windows.Media.Brush brush, double opacity)
+    {
+        var clone = brush.Clone();
+        clone.Opacity = opacity;
+        clone.Freeze();
+        return clone;
     }
 }

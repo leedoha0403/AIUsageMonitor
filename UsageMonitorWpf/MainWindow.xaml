@@ -398,6 +398,7 @@
                                     <controls:HistoryChart Height="210"
                                                            Series="{Binding ChartSeries}"
                                                            Range="{Binding ChartRange}"
+                                                           HighlightedName="{Binding HighlightedSeriesName}"
                                                            Foreground="{DynamicResource MutedBrush}"
                                                            GridBrush="{DynamicResource LineBrush}" />
                                     <ItemsControl ItemsSource="{Binding ChartSeries}" Margin="36,10,0,0">
@@ -408,7 +409,8 @@
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
+                                                <StackPanel Orientation="Horizontal" Margin="0,0,16,0" Cursor="Hand" Background="Transparent"
+                                                            MouseEnter="LegendItem_MouseEnter" MouseLeave="LegendItem_MouseLeave">
                                                     <Rectangle Width="14" Height="3" Fill="{Binding Brush}" VerticalAlignment="Center" Margin="0,0,6,0" />
                                                     <TextBlock Text="{Binding Name}" FontSize="12" />
                                                 </StackPanel>
@@ -422,6 +424,7 @@
                                     <controls:HistoryChart Height="210"
                                                            Areas="{Binding ChartAreas}"
                                                            Range="{Binding ChartRange}"
+                                                           HighlightedName="{Binding HighlightedSeriesName}"
                                                            Foreground="{DynamicResource MutedBrush}"
                                                            GridBrush="{DynamicResource LineBrush}" />
                                     <ItemsControl ItemsSource="{Binding ChartAreas}" Margin="36,10,0,0">
@@ -432,7 +435,8 @@
                                         </ItemsControl.ItemsPanel>
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <StackPanel Orientation="Horizontal" Margin="0,0,16,0">
+                                                <StackPanel Orientation="Horizontal" Margin="0,0,16,0" Cursor="Hand" Background="Transparent"
+                                                            MouseEnter="LegendItem_MouseEnter" MouseLeave="LegendItem_MouseLeave">
                                                     <Rectangle Width="14" Height="3" Fill="{Binding Fill}" VerticalAlignment="Center" Margin="0,0,6,0" />
                                                     <TextBlock Text="{Binding Name}" FontSize="12" />
                                                 </StackPanel>

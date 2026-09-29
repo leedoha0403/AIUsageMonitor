@@ -22,6 +22,7 @@ public sealed class MainViewModel : ObservableObject
         ["1H"] = TimeSpan.FromHours(1),
         ["6H"] = TimeSpan.FromHours(6),
         ["1D"] = TimeSpan.FromDays(1),
+        ["3D"] = TimeSpan.FromDays(3),
         ["7D"] = TimeSpan.FromDays(7),
         ["30D"] = TimeSpan.FromDays(30)
     };
@@ -47,6 +48,7 @@ public sealed class MainViewModel : ObservableObject
     private string _thresholdsText;
     private IReadOnlyList<ChartSeries> _chartSeries = [];
     private IReadOnlyList<ChartArea> _chartAreas = [];
+    private string? _highlightedSeriesName;
     private bool _isRefreshing;
     private int _tick;
     private ProviderViewModel? _selectedAccount;
@@ -757,6 +759,13 @@ public sealed class MainViewModel : ObservableObject
     {
         get => _chartAreas;
         private set => Set(ref _chartAreas, value);
+    }
+
+    // Set while hovering a legend entry, so the chart can fade every other provider and bring this one forward.
+    public string? HighlightedSeriesName
+    {
+        get => _highlightedSeriesName;
+        set => Set(ref _highlightedSeriesName, value);
     }
 
     public bool IsRefreshing

@@ -186,6 +186,7 @@ public static class Loc
         ["opt.1H"] = ("1H", "1시간"),
         ["opt.6H"] = ("6H", "6시간"),
         ["opt.1D"] = ("1D", "1일"),
+        ["opt.3D"] = ("3D", "3일"),
         ["opt.7D"] = ("7D", "7일"),
         ["opt.30D"] = ("30D", "30일"),
         ["opt.claude"] = ("Claude Code", "Claude Code"),
