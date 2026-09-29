@@ -116,6 +116,7 @@ public sealed class MainViewModel : ObservableObject
             OnRefreshStateChanged);
         CancelScheduleCommand = new ParamCommand(p => { if (p is ProviderViewModel vm) { _scheduler.Cancel(vm.State); } });
         RetryRefreshCommand = new ParamCommand(p => { if (p is ProviderViewModel vm) { _scheduler.Retry(vm.State); _ = _scheduler.TickAsync(DateTimeOffset.Now); } });
+        SetHistoryChartModeCommand = new ParamCommand(p => { if (p is string mode) HistoryChartMode = mode; });
         ProviderViewModel.RetryMaxForDisplay = State.Settings.Refresh.RetryMax;
         _schedulerTimer.Tick += (_, _) => _ = _scheduler.TickAsync(DateTimeOffset.Now);
         _schedulerTimer.Start();
@@ -729,9 +730,19 @@ public sealed class MainViewModel : ObservableObject
             State.Settings.HistoryChartMode = value;
             SaveStateOnly();
             OnPropertyChanged(nameof(HistoryChartDescription));
+            OnPropertyChanged(nameof(IsCombinedChartMode));
+            OnPropertyChanged(nameof(IsSessionChartMode));
+            OnPropertyChanged(nameof(IsCumulativeChartMode));
             BuildHistoryChart();
         }
     }
+
+    // One-click segmented selector for HistoryChartMode (see MainWindow.xaml SegmentButton), instead of a
+    // dropdown that needs opening first.
+    public ICommand SetHistoryChartModeCommand { get; }
+    public bool IsCombinedChartMode => _historyChartMode == "Combined";
+    public bool IsSessionChartMode => _historyChartMode == "Session";
+    public bool IsCumulativeChartMode => _historyChartMode == "Weekly";
 
     public string HistoryChartDescription => _historyChartMode switch
     {
@@ -1230,22 +1241,60 @@ public sealed class MainViewModel : ObservableObject
                 case "Session":
                     series.Add(new ChartSeries { Name = p.Title, Brush = p.SeriesBrush, Points = PointsFor(p, x => p.HasSessionWindow ? x.SessionUsagePercent : x.WeeklyUsagePercent) });
                     break;
-                default: // Combined: each provider's primary line, plus a dashed weekly line when it also has a 5H window.
+                default: // Combined: each provider's primary line, plus (when we have enough history to estimate
+                         // it) a dashed line showing what share of the cumulative limit the 5H usage represents —
+                         // a raw 0-100% weekly line next to a 0-100% 5H line would wrongly suggest they're the
+                         // same size, when one 5H window is normally a small slice of the weekly total.
                     series.Add(new ChartSeries { Name = p.Title, Brush = p.SeriesBrush, Points = PointsFor(p, x => p.HasSessionWindow ? x.SessionUsagePercent : x.WeeklyUsagePercent) });
-                    if (p.HasSessionWindow)
+                    if (p.HasSessionWindow && EstimateWeeklyShareRatio(p.AccountKey, history) is { } ratio)
                     {
                         series.Add(new ChartSeries
                         {
                             Name = Loc.T("ui.weeklySeriesLabel", p.Title),
-                            Brush = p.SeriesBrush,
+                            Brush = Lighten(p.SeriesBrush, 0.55),
                             Dashed = true,
-                            Points = PointsFor(p, x => x.WeeklyUsagePercent)
+                            Points = history.Where(x => x.EffectiveKey == p.AccountKey && x.Timestamp >= since)
+                                .Select(x => (x.Timestamp, Math.Clamp(x.SessionUsagePercent * ratio, 0, 100)))
+                                .ToList()
                         });
                     }
                     break;
             }
         }
         ChartSeries = series;
+    }
+
+    // Estimates how many percentage-points of the cumulative (weekly/monthly) limit one percentage-point of
+    // 5H usage costs, on average, from this account's own history — providers only report percentages, never
+    // the two limits' actual sizes, so an exact conversion isn't possible. Pools every recorded rise in both
+    // percentages (ignores drops, which are resets) rather than trying to pair up individual 5H windows, since
+    // a single window's contribution is too small relative to rounding to be reliable on its own.
+    private const double MinSessionGainForEstimate = 20;
+
+    private static double? EstimateWeeklyShareRatio(string accountKey, IReadOnlyList<UsageSnapshot> history)
+    {
+        var rows = history.Where(x => x.EffectiveKey == accountKey).OrderBy(x => x.Timestamp).ToList();
+        double sessionGain = 0, weeklyGain = 0;
+        for (var i = 1; i < rows.Count; i++)
+        {
+            var ds = rows[i].SessionUsagePercent - rows[i - 1].SessionUsagePercent;
+            if (ds > 0) sessionGain += ds;
+            var dw = rows[i].WeeklyUsagePercent - rows[i - 1].WeeklyUsagePercent;
+            if (dw > 0) weeklyGain += dw;
+        }
+        if (sessionGain < MinSessionGainForEstimate) return null;
+        var ratio = weeklyGain / sessionGain;
+        return ratio is > 0 and <= 1 ? ratio : null;
+    }
+
+    private static System.Windows.Media.SolidColorBrush Lighten(System.Windows.Media.SolidColorBrush brush, double amount)
+    {
+        var c = brush.Color;
+        byte Mix(byte channel) => (byte)(channel + (255 - channel) * amount);
+        var lighter = System.Windows.Media.Color.FromArgb(c.A, Mix(c.R), Mix(c.G), Mix(c.B));
+        var result = new System.Windows.Media.SolidColorBrush(lighter);
+        result.Freeze();
+        return result;
     }
 
     private void OnLanguageChanged()
