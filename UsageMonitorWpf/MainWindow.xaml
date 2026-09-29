@@ -378,13 +378,16 @@
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="130" />
                                     <ColumnDefinition Width="120" />
                                 </Grid.ColumnDefinitions>
                                 <TextBlock Text="{DynamicResource ui.usageHistory}" Style="{StaticResource SectionTitle}" />
-                                <ComboBox Grid.Column="1" ItemsSource="{Binding HistoryRanges}" SelectedValuePath="Value" SelectedValue="{Binding HistoryRange}" VerticalAlignment="Center" />
+                                <ComboBox Grid.Column="1" ItemsSource="{Binding HistoryChartModes}" SelectedValuePath="Value" SelectedValue="{Binding HistoryChartMode}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <ComboBox Grid.Column="2" ItemsSource="{Binding HistoryRanges}" SelectedValuePath="Value" SelectedValue="{Binding HistoryRange}" VerticalAlignment="Center" />
                             </Grid>
-                            <TextBlock Text="{DynamicResource ui.usageHistoryDesc}" Style="{StaticResource Muted}" Margin="0,5,0,0" />
-                            <Border Style="{StaticResource Card}" Margin="0,14,0,14">
+                            <TextBlock Text="{DynamicResource ui.usageHistoryDesc}" Style="{StaticResource Muted}" Margin="0,5,0,0"
+                                       Visibility="{Binding ShowSessionChart, Converter={StaticResource BoolToVisibility}}" />
+                            <Border Style="{StaticResource Card}" Margin="0,14,0,14" Visibility="{Binding ShowSessionChart, Converter={StaticResource BoolToVisibility}}">
                                 <StackPanel>
                                     <controls:HistoryChart Height="210"
                                                            Series="{Binding ChartSeries}"
@@ -409,9 +412,11 @@
                                 </StackPanel>
                             </Border>
 
-                            <TextBlock Text="{DynamicResource ui.weeklyUsageHistory}" Style="{StaticResource SectionTitle}" Margin="0,10,0,0" />
-                            <TextBlock Text="{DynamicResource ui.weeklyUsageHistoryDesc}" Style="{StaticResource Muted}" Margin="0,5,0,0" />
-                            <Border Style="{StaticResource Card}" Margin="0,14,0,14">
+                            <TextBlock Text="{DynamicResource ui.weeklyUsageHistory}" Style="{StaticResource SectionTitle}" Margin="0,10,0,0"
+                                       Visibility="{Binding ShowWeeklyChart, Converter={StaticResource BoolToVisibility}}" />
+                            <TextBlock Text="{DynamicResource ui.weeklyUsageHistoryDesc}" Style="{StaticResource Muted}" Margin="0,5,0,0"
+                                       Visibility="{Binding ShowWeeklyChart, Converter={StaticResource BoolToVisibility}}" />
+                            <Border Style="{StaticResource Card}" Margin="0,14,0,14" Visibility="{Binding ShowWeeklyChart, Converter={StaticResource BoolToVisibility}}">
                                 <StackPanel>
                                     <controls:HistoryChart Height="210"
                                                            Series="{Binding WeeklyChartSeries}"

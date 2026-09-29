@@ -26,6 +26,8 @@ public sealed class MainViewModel : ObservableObject
         ["30D"] = TimeSpan.FromDays(30)
     };
 
+    private static readonly string[] ChartModes = ["Combined", "Session", "Weekly"];
+
     private readonly StateStore _store;
     private readonly UsageAggregator _aggregator = new();
     private readonly DispatcherTimer _countdownTimer = new();
@@ -41,6 +43,7 @@ public sealed class MainViewModel : ObservableObject
     private int _refreshSeconds;
     private bool _alwaysOnTop;
     private string _historyRange;
+    private string _historyChartMode;
     private string _thresholdsText;
     private IReadOnlyList<ChartSeries> _chartSeries = [];
     private IReadOnlyList<ChartSeries> _weeklyChartSeries = [];
@@ -77,6 +80,7 @@ public sealed class MainViewModel : ObservableObject
         _refreshSeconds = State.Settings.RefreshSeconds;
         _alwaysOnTop = State.Settings.AlwaysOnTop;
         _historyRange = RangeSpans.ContainsKey(State.Settings.HistoryRange) ? State.Settings.HistoryRange : "1D";
+        _historyChartMode = ChartModes.Contains(State.Settings.HistoryChartMode) ? State.Settings.HistoryChartMode : "Combined";
         _thresholdsText = string.Join(", ", State.Settings.NotificationThresholds);
         RebuildProviders();
 
@@ -388,6 +392,7 @@ public sealed class MainViewModel : ObservableObject
     public IReadOnlyList<OptionItem> DisplayOptions { get; } = Options("Remaining", "Used");
     public IReadOnlyList<OptionItem> CollectionLevels { get; } = Options(CollectorPolicy.Levels);
     public IReadOnlyList<OptionItem> HistoryRanges { get; } = Options(RangeSpans.Keys.ToArray());
+    public IReadOnlyList<OptionItem> HistoryChartModes { get; } = Options(ChartModes);
     public IReadOnlyList<OptionItem> ProviderIds { get; } = Options(Defaults.ProviderOrder);
     public IReadOnlyList<OptionItem> RefreshIntervals { get; } = new[] { 0, 15, 30, 60, 120, 300, 900 }
         .Select(n => new OptionItem(n, () => n == 0 ? Loc.T("opt.refresh.0") : n < 60 ? Loc.T("opt.refresh.sec", n) : Loc.T("opt.refresh.min", n / 60)))
@@ -715,6 +720,22 @@ public sealed class MainViewModel : ObservableObject
     }
 
     public TimeSpan ChartRange => RangeSpans[_historyRange];
+
+    public string HistoryChartMode
+    {
+        get => _historyChartMode;
+        set
+        {
+            if (value == null || !ChartModes.Contains(value) || !Set(ref _historyChartMode, value)) return;
+            State.Settings.HistoryChartMode = value;
+            SaveStateOnly();
+            OnPropertyChanged(nameof(ShowSessionChart));
+            OnPropertyChanged(nameof(ShowWeeklyChart));
+        }
+    }
+
+    public bool ShowSessionChart => _historyChartMode != "Weekly";
+    public bool ShowWeeklyChart => _historyChartMode != "Session";
 
     public IReadOnlyList<ChartSeries> ChartSeries
     {
@@ -1216,7 +1237,7 @@ public sealed class MainViewModel : ObservableObject
     private void OnLanguageChanged()
     {
         Loc.Apply(Language);
-        foreach (var option in new[] { Languages, WidgetModes, WindowVersions, Themes, DisplayOptions, CollectionLevels, HistoryRanges, ProviderIds, RefreshIntervals, OnOffOptions }.SelectMany(x => x))
+        foreach (var option in new[] { Languages, WidgetModes, WindowVersions, Themes, DisplayOptions, CollectionLevels, HistoryRanges, HistoryChartModes, ProviderIds, RefreshIntervals, OnOffOptions }.SelectMany(x => x))
         {
             option.Refresh();
         }
