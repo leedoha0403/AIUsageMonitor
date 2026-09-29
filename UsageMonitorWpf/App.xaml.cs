@@ -30,6 +30,15 @@ public partial class App : System.Windows.Application
             args.SetObserved();
         };
 
+        // Temp copy launched by SelfUpdater: swap the exe and restart it, without touching the single-instance mutex.
+        if (e.Args.Length == 4 && e.Args[0] == Core.SelfUpdater.ApplyArgument)
+        {
+            Core.SelfUpdater.RunHelper(e.Args);
+            Shutdown();
+            return;
+        }
+        Core.SelfUpdater.CleanupBackup();
+
         try
         {
             base.OnStartup(e);

@@ -10,11 +10,11 @@ public sealed record UpdateAsset(string Name, string BrowserDownloadUrl, long Si
 public sealed record UpdateRelease(string TagName, string HtmlUrl, IReadOnlyList<UpdateAsset> Assets)
 {
     public UpdateAsset? FindZip() => Assets.FirstOrDefault(a => a.Name.EndsWith(".zip", StringComparison.OrdinalIgnoreCase));
+    public UpdateAsset? FindExe() => Assets.FirstOrDefault(a => a.Name.Equals(SelfUpdater.ExeAssetName, StringComparison.OrdinalIgnoreCase));
     public UpdateAsset? FindChecksums() => Assets.FirstOrDefault(a => a.Name.Equals("SHA256SUMS.txt", StringComparison.OrdinalIgnoreCase));
 }
 
-// Checks GitHub Releases for a newer build and downloads the release zip for the user to install manually.
-// Never runs or replaces anything itself: it only writes the zip to disk and hands the user a file to open.
+// Checks GitHub Releases for a newer build and downloads it. Replacing the running exe is SelfUpdater's job.
 public static class UpdateChecker
 {
     private const string ApiUrl = "https://api.github.com/repos/leedoha0403/AIUsageMonitor/releases/latest";
@@ -120,8 +120,9 @@ public static class UpdateChecker
         }
     }
 
-    // Returns true when sumsText has a line for fileName whose hash matches the file on disk (or no such line exists).
-    public static bool VerifyChecksum(string sumsText, string fileName, string filePath)
+    // Returns true when sumsText has a line for fileName whose hash matches the file on disk.
+    // A missing line counts as a match unless requireEntry is set.
+    public static bool VerifyChecksum(string sumsText, string fileName, string filePath, bool requireEntry = false)
     {
         var expected = sumsText
             .Split('\n')
@@ -129,7 +130,7 @@ public static class UpdateChecker
             .Select(l => l.Split((char[]?)null, 2, StringSplitOptions.RemoveEmptyEntries))
             .FirstOrDefault(parts => parts.Length == 2 && parts[1].TrimStart('*').Equals(fileName, StringComparison.OrdinalIgnoreCase))
             ?.FirstOrDefault();
-        if (expected is null) return true;
+        if (expected is null) return !requireEntry;
 
         using var sha256 = SHA256.Create();
         using var stream = File.OpenRead(filePath);

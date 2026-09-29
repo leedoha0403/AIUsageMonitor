@@ -140,6 +140,7 @@ public static class Loc
         ["ui.downloadUpdate"] = ("Download", "다운로드"),
         ["ui.downloadingUpdate"] = ("Downloading… {0}%", "다운로드 중… {0}%"),
         ["ui.updateDownloaded"] = ("Downloaded. Close the app, unzip, and replace the exe.", "다운로드 완료. 앱을 종료하고 압축을 풀어 exe를 교체하세요."),
+        ["ui.updateInstalling"] = ("Downloaded. Restarting to apply the update…", "다운로드 완료. 업데이트를 적용하기 위해 다시 시작합니다…"),
         ["ui.updateDownloadFailed"] = ("Download failed: {0}", "다운로드 실패: {0}"),
         ["ui.updateChecksumFailed"] = ("Downloaded file failed checksum verification and was deleted.", "다운로드한 파일이 체크섬 검증에 실패해 삭제했습니다."),
         ["ui.updateNoAsset"] = ("This release has no downloadable build for this platform.", "이 릴리스에는 이 플랫폼용 배포 파일이 없습니다."),

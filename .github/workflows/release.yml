@@ -1,0 +1,39 @@
+name: Release
+
+# Pushing a tag like v0.9.0 builds the Windows package and publishes a GitHub Release.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $version = "${{ github.ref_name }}".TrimStart('v')
+          ./tools/publish-release.ps1 -Version $version
+
+      - name: Publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $tag = "${{ github.ref_name }}"
+          $version = $tag.TrimStart('v')
+          $dir = "dist/release"
+          gh release create $tag `
+            "$dir/AIUsageMonitor-v$version-win-x64.zip" `
+            "$dir/AIUsageMonitor.exe" `
+            "$dir/SHA256SUMS.txt" `
+            --title $tag --generate-notes

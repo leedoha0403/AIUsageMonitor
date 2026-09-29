@@ -62,6 +62,7 @@ public sealed class MainViewModel : ObservableObject
     private string _latestUpdateVersion = "";
     private string _latestReleaseUrl = "";
     private UpdateAsset? _updateZipAsset;
+    private UpdateAsset? _updateExeAsset;
     private UpdateAsset? _updateChecksumsAsset;
 
     public MainViewModel(StateStore store)
@@ -290,12 +291,13 @@ public sealed class MainViewModel : ObservableObject
             }
 
             _updateZipAsset = release.FindZip();
+            _updateExeAsset = release.FindExe();
             _updateChecksumsAsset = release.FindChecksums();
             _latestReleaseUrl = release.HtmlUrl;
             LatestUpdateVersion = release.TagName;
             OnPropertyChanged(nameof(UpdateAvailableText));
 
-            if (_updateZipAsset is null)
+            if (_updateZipAsset is null && _updateExeAsset is null)
             {
                 UpdateAvailable = false;
                 if (manual) UpdateStatusText = Loc.T("ui.updateNoAsset");
@@ -320,6 +322,12 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task DownloadUpdateAsync()
     {
+        if (_updateExeAsset is not null && _updateChecksumsAsset is not null && SelfUpdater.CanReplaceInPlace())
+        {
+            await InstallUpdateAsync(_updateExeAsset, _updateChecksumsAsset);
+            return;
+        }
+
         if (_updateZipAsset is null || IsDownloadingUpdate) return;
         IsDownloadingUpdate = true;
         UpdateDownloadProgress = 0;
@@ -355,6 +363,48 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    // Downloads the standalone exe, verifies it against SHA256SUMS.txt (entry required), then hands over to
+    // SelfUpdater and exits so the helper can swap the file and restart the app.
+    private async Task InstallUpdateAsync(UpdateAsset exeAsset, UpdateAsset checksumsAsset)
+    {
+        if (IsDownloadingUpdate) return;
+        IsDownloadingUpdate = true;
+        UpdateDownloadProgress = 0;
+        UpdateStatusText = "";
+        var exit = false;
+        try
+        {
+            using var cts = new CancellationTokenSource(TimeSpan.FromMinutes(10));
+            var progress = new Progress<double>(p => UpdateDownloadProgress = p);
+            var path = await UpdateChecker.DownloadAssetAsync(exeAsset, SelfUpdater.UpdateDirectory, progress, cts.Token);
+
+            var sums = await UpdateChecker.FetchTextAsync(checksumsAsset.BrowserDownloadUrl, cts.Token);
+            if (sums is null || !UpdateChecker.VerifyChecksum(sums, exeAsset.Name, path, requireEntry: true))
+            {
+                File.Delete(path);
+                UpdateStatusText = Loc.T("ui.updateChecksumFailed");
+                return;
+            }
+
+            UpdateStatusText = Loc.T("ui.updateInstalling");
+            if (!SelfUpdater.LaunchHelper(path))
+            {
+                UpdateStatusText = Loc.T("ui.updateDownloadFailed", "updater launch failed");
+                return;
+            }
+            exit = true;
+        }
+        catch (Exception ex)
+        {
+            UpdateStatusText = Loc.T("ui.updateDownloadFailed", ex.Message);
+        }
+        finally
+        {
+            IsDownloadingUpdate = false;
+        }
+        if (exit) ExitRequested?.Invoke();
+    }
+
     private void OnRefreshStateChanged()
     {
         SaveStateOnly();
@@ -378,6 +428,7 @@ public sealed class MainViewModel : ObservableObject
     private readonly HashSet<string> _nudged = new();
     // Asks the window layer to bring up the widget, where the login button lives.
     public event Action? LoginPromptRequested;
+    public event Action? ExitRequested;
     private readonly Dictionary<string, (bool Install, DateTimeOffset Baseline, DateTimeOffset Until)> _loginWatches = new();
     private readonly DispatcherTimer _loginTimer = new() { Interval = TimeSpan.FromSeconds(3) };
 

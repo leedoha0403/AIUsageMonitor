@@ -60,16 +60,24 @@ $zipPath = Join-Path $releaseDir $zipName
 if (Test-Path $zipPath) { Remove-Item $zipPath -Force }
 Compress-Archive -Path (Join-Path $publishDir '*') -DestinationPath $zipPath
 
+# Standalone exe asset (fixed name) for in-app auto-update; the zip is kept for older clients.
+$exeName = "AIUsageMonitor.exe"
+$exePath = Join-Path $releaseDir $exeName
+Copy-Item (Join-Path $publishDir $exeName) $exePath -Force
+
 $hash = (Get-FileHash -Path $zipPath -Algorithm SHA256).Hash
+$exeHash = (Get-FileHash -Path $exePath -Algorithm SHA256).Hash
 $sumsPath = Join-Path $releaseDir "SHA256SUMS.txt"
 $existing = @()
 if (Test-Path $sumsPath) {
-    $existing = Get-Content $sumsPath | Where-Object { $_ -notmatch [regex]::Escape($zipName) }
+    $existing = Get-Content $sumsPath | Where-Object { $_ -notmatch [regex]::Escape($zipName) -and $_ -notmatch ([regex]::Escape($exeName) + '$') }
 }
-$existing + "$hash  $zipName" | Set-Content -Path $sumsPath -Encoding utf8
+$existing + "$hash  $zipName" + "$exeHash  $exeName" | Set-Content -Path $sumsPath -Encoding utf8
 
 Write-Host ""
 Write-Host "Release package created:"
 Write-Host "  $zipPath"
 Write-Host "  SHA256: $hash"
+Write-Host "  $exePath"
+Write-Host "  SHA256: $exeHash"
 Write-Host "  (recorded in $sumsPath)"

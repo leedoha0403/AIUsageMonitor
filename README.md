@@ -75,7 +75,7 @@ Dashboard       Overview · History · Accounts · Snapshot · Diagnostics · Se
 - Windows 시작 시 자동 실행: 설정 탭 맨 위 또는 트레이 메뉴에서 켭니다. 현재 사용자 시작 프로그램(`HKCU\...\Run`, 관리자 권한 불필요)에 `AIUsageMonitor.exe --startup`으로 등록합니다. 로그인 시에는 대시보드를 띄우지 않고 트레이와 칩(미니 모드면 위젯)으로 조용히 시작합니다. 실행 파일 위치가 바뀌면 다음 실행 때 등록 경로를 자동으로 갱신하며, 작업 관리자에서 끈 상태도 그대로 반영됩니다.
 - 아이콘: exe, 창 제목 표시줄, 트레이, 알림, 대시보드 및 위젯 헤더에 같은 앱 아이콘을 씁니다. `tools/make-icons.ps1 -Source <원본 이미지>`로 `UsageMonitorWpf/Assets/AppIcon.ico/.png`를 다시 만들 수 있습니다. 40px 이상은 원본 아트워크를 사용하고, 32px 이하(트레이 등)는 선명하도록 같은 디자인을 벡터로 다시 그립니다.
 - 한국어/English: UI, 트레이 메뉴, 상태 메시지, 진단, 알림 전체를 번역했으며 언어를 바꾸면 즉시 반영됩니다(`Core/Loc.cs`).
-- 업데이트 확인: 실행 10초 뒤와 설정 탭의 "업데이트 확인" 버튼에서 GitHub Releases의 최신 태그를 조회해 현재 버전과 비교합니다. 새 버전이 있으면 알림과 설정 탭에 표시하고, [다운로드]를 누르면 릴리스 zip을 `다운로드` 폴더에 받은 뒤 SHA256SUMS로 무결성을 검증하고 탐색기로 보여줍니다. 앱을 자동으로 종료·교체·재시작하지 않으며, 설치는 사용자가 직접 압축을 풀어 진행합니다(`Core/UpdateChecker.cs`).
+- 업데이트 확인: 실행 10초 뒤와 설정 탭의 "업데이트 확인" 버튼에서 GitHub Releases의 최신 태그를 조회해 현재 버전과 비교합니다. 새 버전이 있으면 알림과 설정 탭에 표시하고, [다운로드]를 누르면 릴리스의 `AIUsageMonitor.exe`를 받아 SHA256SUMS(해당 항목 필수)로 검증한 뒤 앱을 종료하고 exe를 교체해 자동으로 다시 시작합니다(`Core/SelfUpdater.cs`). 이전 exe는 `.bak`으로 남았다가 다음 실행 때 지워지며, 교체에 실패하면 원래 exe로 되돌립니다. 설치 폴더에 쓰기 권한이 없으면 예전처럼 zip을 `다운로드` 폴더에 받아 직접 설치합니다(`Core/UpdateChecker.cs`).
 
 ## 기능
 
@@ -142,7 +142,7 @@ history.jsonl    30일 히스토리 (기존 history.json은 자동 이전 후 hi
 ## 아직 하지 않은 것
 
 - 작업표시줄 내부 임베딩(현재는 작업표시줄 바로 위에 도킹), Theme/Layout Editor
-- 코드 서명(Authenticode)과 완전 자동 업데이트(자동 종료·교체·재시작). 새 버전 확인/다운로드는 지원하지만 설치는 수동입니다. `tools\publish-release.ps1`로 SHA256 체크섬이 포함된 배포용 zip은 만들 수 있지만, exe 자체에 서명은 하지 않습니다.
+- 코드 서명(Authenticode). 자동 업데이트는 지원하지만 exe 자체에 서명은 하지 않으며, 무결성은 릴리스의 SHA256 체크섬으로만 검증합니다. 릴리스는 `v*` 태그를 push하면 GitHub Actions가 `tools\publish-release.ps1`로 빌드해 자동으로 게시합니다.
 - Claude Desktop 앱 로그인 재사용(암호화 저장소)
 
 ## 비제휴 및 상표 고지

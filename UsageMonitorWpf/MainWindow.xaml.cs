@@ -61,6 +61,7 @@ public partial class MainWindow : Window
             if (DateTime.Now - _balloonShownAt > TimeSpan.FromSeconds(1.5)) action?.Invoke();
         });
         _viewModel.LoginPromptRequested += ShowLoginPrompt;
+        _viewModel.ExitRequested += ExitApplication;
         _notifyIcon.BalloonTipClosed += (_, _) => _balloonAction = null;
 
         Closing += (_, e) =>
@@ -79,6 +80,7 @@ public partial class MainWindow : Window
             _viewModel.LanguageChanged -= BuildTrayMenu;
             ThemeService.Changed -= BuildTrayMenu;
             _viewModel.LoginPromptRequested -= ShowLoginPrompt;
+            _viewModel.ExitRequested -= ExitApplication;
             _viewModel.SaveWindowPlacement(Left, Top);
             _widgetWindow.CloseForExit();
             _chipsWindow.CloseForExit();
