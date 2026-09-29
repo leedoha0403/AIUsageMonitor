@@ -90,7 +90,7 @@ Dashboard       Overview · History · Accounts · Snapshot · Diagnostics · Se
   - Copilot: `~/.copilot/config.json`의 마지막 로그인 계정을 읽고, 토큰은 Copilot CLI가 저장한 Windows 자격 증명 관리자 항목에서 읽습니다. 기본 계정은 CLI와 같은 순서로 `COPILOT_GITHUB_TOKEN` / `GH_TOKEN` / `GITHUB_TOKEN` 환경변수를 먼저 봅니다.
 - **Not signed in 처리**: 로그인이 없거나 만료된 Provider는 회색으로 표시하고 로그인 안내를 보여줍니다. 나머지 Provider는 정상 동작합니다.
 - **Model breakdown / Extra Usage**: Claude Opus/Sonnet 주간 사용량, 유료 Extra usage, Codex credits(Dashboard 전용)
-- **Usage History**: 로컬 `history.jsonl`에 30일 보관합니다(값이 바뀌었거나 5분이 지났을 때만 기록). 1H / 6H / 1D / 7D / 30D 그래프를 제공합니다.
+- **Usage History**: 로컬 `history.jsonl`에 30일 보관합니다(값이 바뀌었거나 5분이 지났을 때만 기록). 1H / 6H / 1D / 3D / 7D / 30D 기간을 선택할 수 있고, "시간 사용량"(5H 선 그래프)과 "누적 사용량"(5H 세션 경계마다 색칠된 블록으로 나눈 누적 그래프) 두 가지 보기를 전환할 수 있습니다. 범례에 마우스를 올리면 해당 계정만 강조됩니다.
 - **Usage Velocity / Limit Forecast**: 최근 30분 변화량, 시간당 소비율, 5H Limit 도달 예상 시각. 공식 값이 아니므로 항상 `Estimated`로 표시합니다.
 - **Reset Timeline / Reset History**: 현재 윈도우의 진행 과정과 최근 7일간 윈도우별 최대 사용량 및 Limit 도달 횟수
 - **Threshold 알림**: 기본값은 70/80/90/95/100%이며 사용자가 지정할 수 있습니다. 같은 5H 윈도우 안에서는 새로 넘은 단계만 한 번 알립니다.
