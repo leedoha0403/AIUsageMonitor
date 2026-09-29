@@ -84,7 +84,7 @@ public partial class WidgetWindow : Window
             e.Cancel = true;
             HideWidget();
         };
-        Closed += (_, _) => _handle.Close();
+        Closed += (_, _) => _handle.CloseForExit();
         _viewModel.LanguageChanged += UpdateFoldButton;
         UpdateFoldButton();
     }

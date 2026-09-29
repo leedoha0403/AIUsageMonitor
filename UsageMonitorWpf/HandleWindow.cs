@@ -40,6 +40,25 @@ public sealed class HandleWindow : Window
 
         MouseEnter += (_, _) => { BeginAnimation(OpacityProperty, null); Opacity = 1; };
         MouseLeave += (_, _) => Opacity = 0.9;
+
+        // A click can still activate this window despite ShowActivated=false, so Alt+F4 (or any close
+        // request) could otherwise really close it — and once a WPF Window is closed it can never Show()
+        // again, permanently breaking the folded widget's hover-to-reveal handle for the rest of the session.
+        Closing += (_, e) =>
+        {
+            if (_closingForExit) return;
+            e.Cancel = true;
+            Hide();
+        };
+    }
+
+    private bool _closingForExit;
+
+    // Called only when the whole app is shutting down; lets this window actually close.
+    public void CloseForExit()
+    {
+        _closingForExit = true;
+        Close();
     }
 
     public void ShowAt(DockEdge edge, Rect area, Rect widget)
