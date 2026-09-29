@@ -26,7 +26,7 @@ public sealed class MainViewModel : ObservableObject
         ["30D"] = TimeSpan.FromDays(30)
     };
 
-    private static readonly string[] ChartModes = ["Combined", "Session", "Weekly"];
+    private static readonly string[] ChartModes = ["Session", "Weekly"];
 
     private readonly StateStore _store;
     private readonly UsageAggregator _aggregator = new();
@@ -46,6 +46,7 @@ public sealed class MainViewModel : ObservableObject
     private string _historyChartMode;
     private string _thresholdsText;
     private IReadOnlyList<ChartSeries> _chartSeries = [];
+    private IReadOnlyList<ChartArea> _chartAreas = [];
     private bool _isRefreshing;
     private int _tick;
     private ProviderViewModel? _selectedAccount;
@@ -79,7 +80,7 @@ public sealed class MainViewModel : ObservableObject
         _refreshSeconds = State.Settings.RefreshSeconds;
         _alwaysOnTop = State.Settings.AlwaysOnTop;
         _historyRange = RangeSpans.ContainsKey(State.Settings.HistoryRange) ? State.Settings.HistoryRange : "1D";
-        _historyChartMode = ChartModes.Contains(State.Settings.HistoryChartMode) ? State.Settings.HistoryChartMode : "Combined";
+        _historyChartMode = ChartModes.Contains(State.Settings.HistoryChartMode) ? State.Settings.HistoryChartMode : "Weekly";
         _thresholdsText = string.Join(", ", State.Settings.NotificationThresholds);
         RebuildProviders();
 
@@ -730,7 +731,6 @@ public sealed class MainViewModel : ObservableObject
             State.Settings.HistoryChartMode = value;
             SaveStateOnly();
             OnPropertyChanged(nameof(HistoryChartDescription));
-            OnPropertyChanged(nameof(IsCombinedChartMode));
             OnPropertyChanged(nameof(IsSessionChartMode));
             OnPropertyChanged(nameof(IsCumulativeChartMode));
             BuildHistoryChart();
@@ -740,23 +740,25 @@ public sealed class MainViewModel : ObservableObject
     // One-click segmented selector for HistoryChartMode (see MainWindow.xaml SegmentButton), instead of a
     // dropdown that needs opening first.
     public ICommand SetHistoryChartModeCommand { get; }
-    public bool IsCombinedChartMode => _historyChartMode == "Combined";
     public bool IsSessionChartMode => _historyChartMode == "Session";
     public bool IsCumulativeChartMode => _historyChartMode == "Weekly";
 
-    public string HistoryChartDescription => _historyChartMode switch
-    {
-        "Session" => Loc.T("ui.usageHistoryDesc"),
-        "Weekly" => Loc.T("ui.weeklyUsageHistoryDesc"),
-        _ => Loc.T("ui.combinedUsageHistoryDesc")
-    };
+    public string HistoryChartDescription => _historyChartMode == "Session" ? Loc.T("ui.usageHistoryDesc") : Loc.T("ui.weeklyUsageHistoryDesc");
 
-    // The lines actually drawn: 5H only, weekly only, or both together (weekly dashed) in one chart,
-    // depending on HistoryChartMode.
+    // The lines drawn on top: 5H usage in Session mode, or each provider's own primary line
+    // (5H when it has one, otherwise its cumulative usage) in Weekly/cumulative mode.
     public IReadOnlyList<ChartSeries> ChartSeries
     {
         get => _chartSeries;
         private set => Set(ref _chartSeries, value);
+    }
+
+    // Filled, session-segmented cumulative usage drawn behind the lines — only populated in Weekly/cumulative
+    // mode, for providers that also have their own 5H window (otherwise the line above already is cumulative).
+    public IReadOnlyList<ChartArea> ChartAreas
+    {
+        get => _chartAreas;
+        private set => Set(ref _chartAreas, value);
     }
 
     public bool IsRefreshing
@@ -1231,68 +1233,55 @@ public sealed class MainViewModel : ObservableObject
                 .ToList();
 
         var series = new List<ChartSeries>();
+        var areas = new List<ChartArea>();
         foreach (var p in DashboardProviders)
         {
-            switch (_historyChartMode)
+            // The line: 5H usage when the provider has its own window, otherwise its cumulative usage
+            // (Copilot has no 5H window, so its cumulative line is already the whole story).
+            series.Add(new ChartSeries { Name = p.Title, Brush = p.SeriesBrush, Points = PointsFor(p, x => p.HasSessionWindow ? x.SessionUsagePercent : x.WeeklyUsagePercent) });
+
+            // In Weekly/cumulative mode, also fill in the real cumulative usage behind that line, divided
+            // at each 5H session boundary so it reads as "these session-sized chunks add up to this total"
+            // instead of a plain line that looks the same size as the 5H one despite meaning something
+            // very different (5H's own 100% vs a sliver of the cumulative 100%).
+            if (_historyChartMode == "Weekly" && p.HasSessionWindow)
             {
-                case "Weekly":
-                    series.Add(new ChartSeries { Name = p.Title, Brush = p.SeriesBrush, Points = PointsFor(p, x => x.WeeklyUsagePercent) });
-                    break;
-                case "Session":
-                    series.Add(new ChartSeries { Name = p.Title, Brush = p.SeriesBrush, Points = PointsFor(p, x => p.HasSessionWindow ? x.SessionUsagePercent : x.WeeklyUsagePercent) });
-                    break;
-                default: // Combined: each provider's primary line, plus (when we have enough history to estimate
-                         // it) a dashed line showing what share of the cumulative limit the 5H usage represents —
-                         // a raw 0-100% weekly line next to a 0-100% 5H line would wrongly suggest they're the
-                         // same size, when one 5H window is normally a small slice of the weekly total.
-                    series.Add(new ChartSeries { Name = p.Title, Brush = p.SeriesBrush, Points = PointsFor(p, x => p.HasSessionWindow ? x.SessionUsagePercent : x.WeeklyUsagePercent) });
-                    if (p.HasSessionWindow && EstimateWeeklyShareRatio(p.AccountKey, history) is { } ratio)
-                    {
-                        series.Add(new ChartSeries
-                        {
-                            Name = Loc.T("ui.weeklySeriesLabel", p.Title),
-                            Brush = Lighten(p.SeriesBrush, 0.55),
-                            Dashed = true,
-                            Points = history.Where(x => x.EffectiveKey == p.AccountKey && x.Timestamp >= since)
-                                .Select(x => (x.Timestamp, Math.Clamp(x.SessionUsagePercent * ratio, 0, 100)))
-                                .ToList()
-                        });
-                    }
-                    break;
+                areas.Add(new ChartArea
+                {
+                    Name = p.Title,
+                    Fill = WithOpacity(p.SeriesBrush, 0.35),
+                    Points = PointsFor(p, x => x.WeeklyUsagePercent),
+                    Boundaries = DetectSessionBoundaries(p.AccountKey, history, since)
+                });
             }
         }
         ChartSeries = series;
+        ChartAreas = areas;
     }
 
-    // Estimates how many percentage-points of the cumulative (weekly/monthly) limit one percentage-point of
-    // 5H usage costs, on average, from this account's own history — providers only report percentages, never
-    // the two limits' actual sizes, so an exact conversion isn't possible. Pools every recorded rise in both
-    // percentages (ignores drops, which are resets) rather than trying to pair up individual 5H windows, since
-    // a single window's contribution is too small relative to rounding to be reliable on its own.
-    private const double MinSessionGainForEstimate = 20;
+    // A meaningful drop in 5H usage between two consecutive polls means that window reset and a new one
+    // began; each such point marks where one session's slice of the cumulative area ends and the next begins.
+    private const int SessionResetDropThreshold = 5;
 
-    private static double? EstimateWeeklyShareRatio(string accountKey, IReadOnlyList<UsageSnapshot> history)
+    private static List<DateTimeOffset> DetectSessionBoundaries(string accountKey, IReadOnlyList<UsageSnapshot> history, DateTimeOffset since)
     {
-        var rows = history.Where(x => x.EffectiveKey == accountKey).OrderBy(x => x.Timestamp).ToList();
-        double sessionGain = 0, weeklyGain = 0;
+        var rows = history.Where(x => x.EffectiveKey == accountKey && x.Timestamp >= since).OrderBy(x => x.Timestamp).ToList();
+        var boundaries = new List<DateTimeOffset>();
         for (var i = 1; i < rows.Count; i++)
         {
-            var ds = rows[i].SessionUsagePercent - rows[i - 1].SessionUsagePercent;
-            if (ds > 0) sessionGain += ds;
-            var dw = rows[i].WeeklyUsagePercent - rows[i - 1].WeeklyUsagePercent;
-            if (dw > 0) weeklyGain += dw;
+            if (rows[i].SessionUsagePercent < rows[i - 1].SessionUsagePercent - SessionResetDropThreshold) boundaries.Add(rows[i].Timestamp);
         }
-        if (sessionGain < MinSessionGainForEstimate) return null;
-        var ratio = weeklyGain / sessionGain;
-        return ratio is > 0 and <= 1 ? ratio : null;
+        return boundaries;
     }
 
-    private static System.Windows.Media.SolidColorBrush Lighten(System.Windows.Media.SolidColorBrush brush, double amount)
+    // A translucent version of a provider's own color for its cumulative area fill: same hue as its line
+    // (so it's still obviously "that provider"), but see-through enough that two providers' areas overlapping
+    // in time both stay visible instead of one flatly covering the other.
+    private static System.Windows.Media.SolidColorBrush WithOpacity(System.Windows.Media.SolidColorBrush brush, double opacity)
     {
         var c = brush.Color;
-        byte Mix(byte channel) => (byte)(channel + (255 - channel) * amount);
-        var lighter = System.Windows.Media.Color.FromArgb(c.A, Mix(c.R), Mix(c.G), Mix(c.B));
-        var result = new System.Windows.Media.SolidColorBrush(lighter);
+        var faded = System.Windows.Media.Color.FromArgb((byte)(255 * opacity), c.R, c.G, c.B);
+        var result = new System.Windows.Media.SolidColorBrush(faded);
         result.Freeze();
         return result;
     }

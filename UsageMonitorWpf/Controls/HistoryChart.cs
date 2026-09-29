@@ -9,8 +9,16 @@ public sealed class ChartSeries
     public string Name { get; init; } = "";
     public System.Windows.Media.Brush Brush { get; init; } = System.Windows.Media.Brushes.Gray;
     public List<(DateTimeOffset At, double Value)> Points { get; init; } = new();
-    // Used in the combined view to tell a provider's weekly line apart from its 5H line without a second chart.
-    public bool Dashed { get; init; }
+}
+
+// A filled, step-shaped region (e.g. cumulative usage) drawn behind the line series, with thin divider
+// lines at each Boundaries timestamp splitting it into segments (e.g. one per 5H session).
+public sealed class ChartArea
+{
+    public string Name { get; init; } = "";
+    public System.Windows.Media.Brush Fill { get; init; } = System.Windows.Media.Brushes.Transparent;
+    public List<(DateTimeOffset At, double Value)> Points { get; init; } = new();
+    public List<DateTimeOffset> Boundaries { get; init; } = new();
 }
 
 // Lightweight line chart (0-100%) drawn directly with DrawingContext; no charting dependency.
@@ -18,6 +26,10 @@ public sealed class HistoryChart : FrameworkElement
 {
     public static readonly DependencyProperty SeriesProperty = DependencyProperty.Register(
         nameof(Series), typeof(IReadOnlyList<ChartSeries>), typeof(HistoryChart),
+        new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
+
+    public static readonly DependencyProperty AreasProperty = DependencyProperty.Register(
+        nameof(Areas), typeof(IReadOnlyList<ChartArea>), typeof(HistoryChart),
         new FrameworkPropertyMetadata(null, FrameworkPropertyMetadataOptions.AffectsRender));
 
     public static readonly DependencyProperty RangeProperty = DependencyProperty.Register(
@@ -36,6 +48,12 @@ public sealed class HistoryChart : FrameworkElement
     {
         get => (IReadOnlyList<ChartSeries>?)GetValue(SeriesProperty);
         set => SetValue(SeriesProperty, value);
+    }
+
+    public IReadOnlyList<ChartArea>? Areas
+    {
+        get => (IReadOnlyList<ChartArea>?)GetValue(AreasProperty);
+        set => SetValue(AreasProperty, value);
     }
 
     public TimeSpan Range
@@ -91,6 +109,43 @@ public sealed class HistoryChart : FrameworkElement
             dc.DrawText(label, new System.Windows.Point(x, top + height + 5));
         }
 
+        if (Areas != null)
+        {
+            var dividerPen = new System.Windows.Media.Pen(Foreground, 1) { DashStyle = DashStyles.Dot };
+            dividerPen.Freeze();
+            foreach (var area in Areas)
+            {
+                var points = area.Points.Where(p => p.At >= start).OrderBy(p => p.At).ToList();
+                var before = area.Points.Where(p => p.At < start).OrderBy(p => p.At).LastOrDefault();
+                if (before != default) points.Insert(0, (start, before.Value));
+                if (points.Count == 0) continue;
+
+                var fillGeometry = new StreamGeometry();
+                using (var ctx = fillGeometry.Open())
+                {
+                    ctx.BeginFigure(new System.Windows.Point(X(points[0].At), top + height), true, true);
+                    ctx.LineTo(new System.Windows.Point(X(points[0].At), Y(points[0].Value)), true, true);
+                    for (var i = 1; i < points.Count; i++)
+                    {
+                        ctx.LineTo(new System.Windows.Point(X(points[i].At), Y(points[i - 1].Value)), true, true);
+                        ctx.LineTo(new System.Windows.Point(X(points[i].At), Y(points[i].Value)), true, true);
+                    }
+                    var endX = X(end);
+                    ctx.LineTo(new System.Windows.Point(endX, Y(points[^1].Value)), true, true);
+                    ctx.LineTo(new System.Windows.Point(endX, top + height), true, true);
+                }
+                fillGeometry.Freeze();
+                dc.DrawGeometry(area.Fill, null, fillGeometry);
+
+                foreach (var boundary in area.Boundaries.Where(b => b >= start && b <= end))
+                {
+                    var valueAt = points.LastOrDefault(p => p.At <= boundary).Value;
+                    var x = X(boundary);
+                    dc.DrawLine(dividerPen, new System.Windows.Point(x, Y(valueAt)), new System.Windows.Point(x, top + height));
+                }
+            }
+        }
+
         if (Series == null) return;
         foreach (var series in Series)
         {
@@ -101,7 +156,6 @@ public sealed class HistoryChart : FrameworkElement
             if (points.Count == 0) continue;
 
             var pen = new System.Windows.Media.Pen(series.Brush, 2) { LineJoin = PenLineJoin.Round };
-            if (series.Dashed) pen.DashStyle = new DashStyle(new double[] { 3, 2 }, 0);
             pen.Freeze();
             var geometry = new StreamGeometry();
             using (var ctx = geometry.Open())
