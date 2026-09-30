@@ -24,8 +24,9 @@ public static class AIUsageWidgetManifest
         ContractVersion = ContractInfo.Current,
         Layout = new WidgetLayoutProfile
         {
-            NaturalSize = new WidgetSize(330, 200),
-            CompactSize = new WidgetSize(230, 130),
+            // Natural shows one card per account (~95 each) plus a footer note; size for two accounts.
+            NaturalSize = new WidgetSize(330, 260),
+            CompactSize = new WidgetSize(230, 150),
             CollapsedSize = new WidgetSize(150, 36),
             MinNaturalSize = new WidgetSize(300, 110),
             MinCompactSize = new WidgetSize(190, 64),
@@ -39,6 +40,9 @@ public static class AIUsageWidgetManifest
         AllowMultipleInstances = false,
         SupportsDetailView = true,
         SupportsFloating = true,
+        // The detail view is the full dashboard (same as the standalone main window: 1100x760, min 900x620).
+        PreferredDetailSize = new WidgetSize(1100, 760),
+        MinDetailSize = new WidgetSize(900, 620),
         Description = "Claude / Codex / Copilot usage limits and reset timers.",
         Author = "leedoha",
         IconKey = "aiusage",

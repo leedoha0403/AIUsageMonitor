@@ -23,7 +23,7 @@ $root = Split-Path -Parent $PSScriptRoot
 if (-not $HostDir) {
     $HostDir = Join-Path (Split-Path -Parent $root) "ModuleDock\src\Dora.Widget.Host\bin\$Configuration\net8.0-windows"
 }
-if (-not (Test-Path (Join-Path $HostDir "Dora.Widget.Host.dll"))) {
+if (-not (Test-Path (Join-Path $HostDir "ModuleDock.dll"))) {
     throw "No Host found in '$HostDir'. Build the ModuleDock Host first, or pass -HostDir."
 }
 

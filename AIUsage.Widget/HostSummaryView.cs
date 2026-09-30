@@ -12,6 +12,8 @@ public sealed class HostSummaryView : ContentControl, IDisplayModeAware
 
     public HostSummaryView()
     {
+        HostThemeBridge.ApplyFont(_inner);
+        HostThemeBridge.Watch(this);
         Content = _inner;
         IsTabStop = false;
     }

@@ -172,6 +172,8 @@ public sealed class CollectorInfo
     public DateTimeOffset? LastSuccessAt { get; set; }
     public string Message { get; set; } = "";
     public string Detail { get; set; } = "";
+    // After a rate-limit response the collector is left alone until this time (a forced refresh still runs it).
+    public DateTimeOffset? BackoffUntil { get; set; }
 }
 
 public sealed class UsageSnapshot

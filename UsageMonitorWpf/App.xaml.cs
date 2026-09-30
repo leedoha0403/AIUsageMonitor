@@ -12,6 +12,8 @@ public partial class App : System.Windows.Application
 
     // Fixed GUID-based names so a second launch reliably finds the first instance's mutex/event.
     private const string MutexName = AIUsage.Core.AppIdentity.StandaloneMutexName;
+    // Same name as ModuleDock's WidgetAnnounce.EventName (the app does not reference the Host contracts).
+    private const string AnnounceEventName = "Local\\ModuleDock.WidgetAnnounce";
     private const string ShowEventName = "Local\\UsageMonitorWpf-ShowDashboard-9F1E7B2D-6C3A-4E4A-9E1D-2E9B6D6C1A11";
 
     private System.Threading.Mutex? _singleInstanceMutex;
@@ -71,6 +73,17 @@ public partial class App : System.Windows.Application
                 return;
             }
 
+            // One owner of the mini widget: while a Host holds it, a plain start is refused. Only a hand-over
+            // (--adopt, started by the Host after it released the widget) may start next to it.
+            if (!LaunchedForAdopt && AIUsage.Core.AppIdentity.IsHeldByAnotherProcess(AIUsage.Core.AppIdentity.WidgetPresenceMutexName))
+            {
+                Log("start refused: the widget lives in ModuleDock");
+                if (!e.Args.Contains(Shell.StartupService.StartupArgument, System.StringComparer.OrdinalIgnoreCase))
+                    System.Windows.MessageBox.Show(AIUsage.Core.Loc.T("ui.runsInHost"), AIUsage.Core.Loc.T("ui.appName"));
+                Shutdown();
+                return;
+            }
+
             _showEvent = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset, ShowEventName);
             StartShowRequestListener();
 
@@ -82,12 +95,27 @@ public partial class App : System.Windows.Application
             MainWindow = window;
             // MainWindow applies the saved Mini/Expanded version itself (widget only in Mini).
             Log("main window created");
+            if (!LaunchedForAdopt) AnnounceToHost();
         }
         catch (System.Exception ex)
         {
             Log(ex.ToString());
             System.Windows.MessageBox.Show(ex.ToString(), "Usage Monitor startup error");
             Shutdown(-1);
+        }
+    }
+
+    // Tells a running ModuleDock Host that this app is up, so the Host connects and the mini widget can be dropped
+    // onto it. No Host means the event does not exist; nothing is polled either way.
+    private static void AnnounceToHost()
+    {
+        try
+        {
+            using var announce = System.Threading.EventWaitHandle.OpenExisting(AnnounceEventName);
+            announce.Set();
+        }
+        catch (System.Exception ex) when (ex is System.Threading.WaitHandleCannotBeOpenedException or System.UnauthorizedAccessException)
+        {
         }
     }
 

@@ -47,6 +47,11 @@ public sealed class CollectorResult
     public List<ModelUsage>? ModelBreakdown { get; init; }
     public ExtraUsageInfo? ExtraUsage { get; init; }
     public string? CreditsBalance { get; init; }
+    // Set when the service asked us to slow down (HTTP 429): the collector is not run again before this has passed.
+    public TimeSpan? RetryAfter { get; init; }
+
+    public static CollectorResult RateLimited(string message, TimeSpan retryAfter, string detail = "") =>
+        new() { Message = message, Detail = detail, RetryAfter = retryAfter };
 
     public static CollectorResult Fail(string message, string detail = "") => new() { Message = message, Detail = detail };
     public static CollectorResult SignedOut(string message, string detail = "") => new() { NotSignedIn = true, Message = message, Detail = detail };

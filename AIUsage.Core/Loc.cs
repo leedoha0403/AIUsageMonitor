@@ -12,6 +12,8 @@ public static class Loc
     {
         // Window / header
         ["ui.appName"] = ("Usage Monitor", "AI 사용량 모니터"),
+        ["ui.runsInHost"] = ("AI Usage is already shown in ModuleDock. Drag the widget out of the Host to open the app.",
+            "AI 사용량이 이미 ModuleDock에 표시 중입니다. 앱을 열려면 Host에서 위젯을 밖으로 꺼내세요."),
         ["ui.refreshing"] = ("Refreshing…", "갱신 중…"),
         ["ui.refresh"] = ("Refresh", "새로고침"),
         ["ui.saveSnapshot"] = ("Save Snapshot", "스냅샷 저장"),
@@ -290,6 +292,7 @@ public static class Loc
         ["msg.localEstimate"] = ("Local estimate (window reset since last update)", "로컬 추정 (마지막 갱신 이후 윈도우 리셋됨)"),
         ["msg.official"] = ("Official usage endpoint", "공식 사용량 엔드포인트"),
         ["msg.noWindows"] = ("Usage endpoint returned no rate-limit windows", "사용량 엔드포인트에 한도 정보가 없습니다"),
+        ["msg.rateLimited"] = ("Rate limited by the usage endpoint (HTTP 429); trying again at {0}", "사용량 엔드포인트 요청 제한 (HTTP 429), {0}에 다시 시도"),
         ["msg.httpError"] = ("Usage endpoint returned HTTP {0}", "사용량 엔드포인트 오류 (HTTP {0})"),
         ["msg.readCredFail"] = ("Could not read {0} credentials", "{0} 로그인 정보를 읽을 수 없습니다"),
         ["msg.claudeNoLogin"] = ("Not signed in (no Claude Code CLI login found)", "로그인 필요 (Claude Code CLI 로그인 파일 없음)"),

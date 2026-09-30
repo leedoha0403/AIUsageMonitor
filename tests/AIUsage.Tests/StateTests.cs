@@ -13,6 +13,7 @@ public class StateTests
         state.Settings.FavoriteProvider = "codex";
         state.Settings.NotificationThresholds = [50, 90];
         state.Settings.HistoryRange = "7D";
+        state.Settings.WidgetMode = "Compact";
         // Shell / Host-owned values that must not travel with the widget.
         state.WidgetLeft = 123;
         state.WidgetTop = 456;
@@ -38,6 +39,7 @@ public class StateTests
         Assert.Equal("codex", state.Settings.FavoriteProvider);
         Assert.Equal(new[] { 50, 90 }, state.Settings.NotificationThresholds);
         Assert.Equal("7D", state.Settings.HistoryRange);
+        Assert.Equal("Compact", state.Settings.WidgetMode);
         Assert.Contains("claude", state.Providers.Keys);
     }
 
@@ -46,11 +48,28 @@ public class StateTests
     {
         var json = FeatureStateSnapshot.Capture(SampleState()).Serialize();
 
-        foreach (var forbidden in new[] { "WidgetLeft", "WidgetTop", "WidgetDockEdge", "WidgetFolded", "ChipsLeft",
-                                          "WidgetOpacity", "ShowTaskbarChips", "AlwaysOnTop", "Theme", "WindowVersion", "WidgetMode" })
+        foreach (var forbidden in new[] { "WidgetLeft", "WidgetTop", "WidgetDockEdge", "WidgetFolded",
+                                          "WidgetOpacity", "AlwaysOnTop", "Theme", "WindowVersion" })
         {
             Assert.DoesNotContain($"\"{forbidden}\"", json);
         }
+    }
+
+    [Fact]
+    public void Taskbar_chips_settings_travel_with_the_feature_state()
+    {
+        var state = SampleState();
+        state.Settings.ShowTaskbarChips = false;
+        state.Settings.ChipsOpacity = 0.6;
+        state.ChipsLeft = 120;
+        state.ChipsTop = 340;
+
+        var restored = FeatureStateSnapshot.Deserialize(FeatureStateSnapshot.CurrentVersion, FeatureStateSnapshot.Capture(state).Serialize())!.ToAppState();
+
+        Assert.False(restored.Settings.ShowTaskbarChips);
+        Assert.Equal(0.6, restored.Settings.ChipsOpacity);
+        Assert.Equal(120, restored.ChipsLeft);
+        Assert.Equal(340, restored.ChipsTop);
     }
 
     [Fact]

@@ -85,6 +85,9 @@ public sealed class AppHandoffService : IAsyncDisposable
     private async Task<HandoffMessage> AdoptAsync(HandoffMessage message)
     {
         FeatureStateSnapshot? snapshot = null;
+        FeatureStateSnapshot? chipsOnly = null;
+        if (!_adoptState && !string.IsNullOrEmpty(message.StateJson))
+            chipsOnly = FeatureStateSnapshot.Deserialize(message.StateVersion, message.StateJson);
         if (_adoptState && !string.IsNullOrEmpty(message.StateJson))
         {
             snapshot = FeatureStateSnapshot.Deserialize(message.StateVersion, message.StateJson);
@@ -98,6 +101,7 @@ public sealed class AppHandoffService : IAsyncDisposable
         await _surface.RunOnUiAsync(() =>
         {
             if (snapshot != null) _viewModel.AdoptFeatureState(snapshot);
+            else if (chipsOnly != null) _viewModel.AdoptChipsSettings(chipsOnly);
             _surface.ShowAt(message.X, message.Y, message.Width, message.Height, message.Dpi);
         }).ConfigureAwait(false);
 

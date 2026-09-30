@@ -8,6 +8,7 @@ using AIUsage.Presentation.Controls;
 using AIUsage.Core;
 using AIUsage.Core.Handoff;
 using AIUsage.Presentation.Handoff;
+using AIUsage.Presentation.Views;
 using AIUsage.Core.Storage;
 using AIUsage.Presentation.ViewModels;
 using Forms = System.Windows.Forms;
@@ -19,7 +20,7 @@ public partial class MainWindow : Window
     private readonly Forms.NotifyIcon _notifyIcon;
     private readonly MainViewModel _viewModel;
     private readonly WidgetWindow _widgetWindow;
-    private readonly ChipsWindow _chipsWindow;
+    private readonly UsageChipsWindow _chipsWindow;
     private readonly AppHandoffService _handoff;
 
     public MainWindow()
@@ -30,13 +31,25 @@ public partial class MainWindow : Window
         DataContext = _viewModel;
         _widgetWindow = new WidgetWindow(_viewModel, ShowDashboard, ExitApplication,
             () => _viewModel.ShowTaskbarChips = true, IsChipsShown);
-        _chipsWindow = new ChipsWindow(_viewModel, ToggleFlyout, ShowDashboard, ExitApplication,
-            ShowWidget, IsWidgetShown);
+        _chipsWindow = new UsageChipsWindow(_viewModel, new ChipsActions
+        {
+            Click = ToggleFlyout,
+            OpenDashboard = ShowDashboard,
+            ShowWidget = ShowWidget,
+            IsWidgetShown = IsWidgetShown,
+            Exit = ExitApplication,
+            HoverOpaque = () => _viewModel.HoverOpaque
+        });
         // Ownership hand-over with a ModuleDock Host: a Host can hand a widget to this process, and this process
         // can hand its mini widget back when it is dropped onto the Host.
         _handoff = new AppHandoffService(HandoffPipe.DefaultName, _viewModel, new WidgetHandoffSurface(Dispatcher, _widgetWindow),
             adoptState: App.LaunchedForAdopt, _viewModel.InternalVersion);
         _widgetWindow.AttachHandoff(_handoff);
+        // The Host owns the widget now, including its detail window; the dashboard must not stay up next to it.
+        // The chips go with it: the Host shows them from the same setting.
+        _widgetWindow.DockedIntoHost += () => { Hide(); _chipsWindow.Hide(); };
+        // A widget handed over by the Host brings the chips back with it, from the state it handed over.
+        _widgetWindow.ShownByHost += () => { if (_viewModel.ShowTaskbarChips) _chipsWindow.ShowChips(); };
         _handoff.Start();
         _viewModel.PropertyChanged += ViewModelOnPropertyChanged;
         _viewModel.NotificationRequested += ShowNotification;
@@ -182,7 +195,9 @@ public partial class MainWindow : Window
 
     private void ApplyChips()
     {
-        if (_viewModel.ShowTaskbarChips) _chipsWindow.ShowChips();
+        // One owner shows the chips: not while a Host owns the widget (its chips are the ones on screen then).
+        if (_viewModel.ShowTaskbarChips && !AIUsage.Core.AppIdentity.IsHeldByAnotherProcess(AIUsage.Core.AppIdentity.WidgetPresenceMutexName))
+            _chipsWindow.ShowChips();
         else _chipsWindow.Hide();
     }
 
@@ -227,6 +242,8 @@ public partial class MainWindow : Window
 
     public void ShowDashboard()
     {
+        // One main screen per widget: while a Host owns the widget its detail window is the main screen.
+        if (AIUsage.Core.AppIdentity.TryOpenHostDetail()) return;
         Show();
         WindowState = WindowState.Normal;
         ShowInTaskbar = true;
@@ -277,6 +294,10 @@ public partial class MainWindow : Window
         if (e.PropertyName == nameof(MainViewModel.IsMiniVersion) || e.PropertyName == nameof(MainViewModel.WindowVersion))
         {
             ApplyWindowVersion();
+        }
+        else if (e.PropertyName == nameof(MainViewModel.HoverOpaque))
+        {
+            _chipsWindow.ApplyOpacity();
         }
         else if (e.PropertyName == nameof(MainViewModel.ShowTaskbarChips))
         {

@@ -11,9 +11,6 @@ public static class WindowOpacity
     public static void Attach(Window window, MainViewModel viewModel) =>
         Attach(window, viewModel, () => viewModel.WidgetOpacity, nameof(MainViewModel.WidgetOpacity));
 
-    public static void AttachChips(Window window, MainViewModel viewModel) =>
-        Attach(window, viewModel, () => viewModel.ChipsOpacity, nameof(MainViewModel.ChipsOpacity));
-
     private static void Attach(Window window, MainViewModel viewModel, Func<double> getOpacity, string opacityProperty)
     {
         void Apply()

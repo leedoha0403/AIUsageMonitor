@@ -19,7 +19,6 @@ public sealed class MainViewModel : UsageFeatureViewModel
 {
     private const int SettingsTabIndex = 6;
 
-    private string _widgetMode;
     private string _windowVersion;
     private string _theme;
     private bool _alwaysOnTop;
@@ -38,7 +37,6 @@ public sealed class MainViewModel : UsageFeatureViewModel
     public MainViewModel(IUsageStore store, IUiServices ui) : base(store, ui)
     {
         CustomThemePresets = new ObservableCollection<CustomThemePreset>(State.Settings.CustomThemePresets);
-        _widgetMode = State.Settings.WidgetMode;
         _windowVersion = State.Settings.WindowVersion;
         _theme = State.Settings.Theme;
         _alwaysOnTop = State.Settings.AlwaysOnTop;
@@ -74,14 +72,13 @@ public sealed class MainViewModel : UsageFeatureViewModel
 
     protected override void OnShellLanguageChanged()
     {
-        foreach (var option in new[] { WidgetModes, WindowVersions, Themes, OnOffOptions }.SelectMany(x => x))
+        foreach (var option in new[] { WindowVersions, Themes, OnOffOptions }.SelectMany(x => x))
         {
             option.Refresh();
         }
     }
 
     public ObservableCollection<CustomThemePreset> CustomThemePresets { get; }
-    public IReadOnlyList<OptionItem> WidgetModes { get; } = Options("Compact", "Normal", "Detailed");
     public IReadOnlyList<OptionItem> WindowVersions { get; } = Options("Mini", "Expanded");
     public IReadOnlyList<OptionItem> Themes { get; } = Options("System", "Light", "Dark", "Custom");
     public IReadOnlyList<OptionItem> OnOffOptions { get; } = [new OptionItem("On", () => Loc.T("ui.on")), new OptionItem("Off", () => Loc.T("ui.off"))];
@@ -101,8 +98,6 @@ public sealed class MainViewModel : UsageFeatureViewModel
     public string RepositoryUrl => "https://github.com/leedoha0403/AIUsageMonitor";
     public string IssueUrl => "https://github.com/leedoha0403/AIUsageMonitor/issues";
 
-    public override bool IsCompact => WidgetMode == "Compact";
-    public override bool IsDetailed => WidgetMode == "Detailed";
     public bool IsMiniVersion => WindowVersion == "Mini";
     public bool IsExpandedVersion => WindowVersion == "Expanded";
 
@@ -283,13 +278,6 @@ public sealed class MainViewModel : UsageFeatureViewModel
         SaveStateOnly();
     }
 
-    public void SaveChipsPlacement(double left, double top)
-    {
-        State.ChipsLeft = left;
-        State.ChipsTop = top;
-        SaveStateOnly();
-    }
-
     private void SetCustomThemeColor(string? value, Action<string> set, [CallerMemberName] string? propertyName = null)
     {
         var normalized = string.IsNullOrWhiteSpace(value) ? "" : value.Trim();
@@ -361,12 +349,6 @@ public sealed class MainViewModel : UsageFeatureViewModel
         private set { Set(ref _updateDownloadProgress, value); OnPropertyChanged(nameof(UpdateDownloadProgressText)); }
     }
     public string UpdateDownloadProgressText => Loc.T("ui.downloadingUpdate", (int)Math.Round(UpdateDownloadProgress * 100));
-
-    public string WidgetMode
-    {
-        get => _widgetMode;
-        set { if (value != null && Set(ref _widgetMode, value)) { State.Settings.WidgetMode = value; SaveStateOnly(); OnPropertyChanged(nameof(IsCompact)); OnPropertyChanged(nameof(IsDetailed)); } }
-    }
 
     public string WindowVersion
     {
@@ -488,22 +470,6 @@ public sealed class MainViewModel : UsageFeatureViewModel
 
     public string WidgetOpacityText => $"{WidgetOpacity * 100:0}%";
 
-    public double ChipsOpacity
-    {
-        get => State.Settings.ChipsOpacity;
-        set
-        {
-            var clamped = Math.Round(Math.Clamp(value, 0.2, 1.0), 2);
-            if (Math.Abs(State.Settings.ChipsOpacity - clamped) < 0.001) return;
-            State.Settings.ChipsOpacity = clamped;
-            OnPropertyChanged();
-            OnPropertyChanged(nameof(ChipsOpacityText));
-            SaveStateOnly();
-        }
-    }
-
-    public string ChipsOpacityText => $"{ChipsOpacity * 100:0}%";
-
     public bool HoverOpaque
     {
         get => State.Settings.HoverOpaque;
@@ -525,11 +491,5 @@ public sealed class MainViewModel : UsageFeatureViewModel
             }
             OnPropertyChanged();
         }
-    }
-
-    public bool ShowTaskbarChips
-    {
-        get => State.Settings.ShowTaskbarChips;
-        set { State.Settings.ShowTaskbarChips = value; OnPropertyChanged(); SaveStateOnly(); }
     }
 }

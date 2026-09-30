@@ -2,7 +2,7 @@ using System.Text.Json;
 
 namespace AIUsage.Core.Storage;
 
-// The part of AppState that belongs to the usage feature itself. Window/dock placement, theme, tray/chips and
+// The part of AppState that belongs to the usage feature itself (including the taskbar chips). Window/dock placement, theme, tray and
 // other shell options are owned by whoever hosts the feature and are deliberately not part of it.
 public sealed class FeatureStateSnapshot
 {
@@ -23,6 +23,11 @@ public sealed class FeatureStateSnapshot
         {
             Language = state.Settings.Language,
             DisplayUsageAs = state.Settings.DisplayUsageAs,
+            WidgetMode = state.Settings.WidgetMode,
+            ShowTaskbarChips = state.Settings.ShowTaskbarChips,
+            ChipsOpacity = state.Settings.ChipsOpacity,
+            ChipsLeft = state.ChipsLeft,
+            ChipsTop = state.ChipsTop,
             RefreshSeconds = state.Settings.RefreshSeconds,
             CollectionLevel = state.Settings.CollectionLevel,
             AllowUnverifiedCollectors = state.Settings.AllowUnverifiedCollectors,
@@ -47,6 +52,11 @@ public sealed class FeatureStateSnapshot
         };
         state.Settings.Language = Settings.Language;
         state.Settings.DisplayUsageAs = Settings.DisplayUsageAs;
+        state.Settings.WidgetMode = Settings.WidgetMode;
+        state.Settings.ShowTaskbarChips = Settings.ShowTaskbarChips;
+        state.Settings.ChipsOpacity = Settings.ChipsOpacity;
+        state.ChipsLeft = Settings.ChipsLeft;
+        state.ChipsTop = Settings.ChipsTop;
         state.Settings.RefreshSeconds = Settings.RefreshSeconds;
         state.Settings.CollectionLevel = Settings.CollectionLevel;
         state.Settings.AllowUnverifiedCollectors = Settings.AllowUnverifiedCollectors;
@@ -88,6 +98,13 @@ public sealed class FeatureSettings
 {
     public string Language { get; set; } = "Korean";
     public string DisplayUsageAs { get; set; } = "Remaining";
+    // Mini summary density (Compact / Normal / Detailed); part of the feature, not the Host.
+    public string WidgetMode { get; set; } = "Normal";
+    // The taskbar chips belong to the feature: whoever owns the widget shows them, from the same setting and spot.
+    public bool ShowTaskbarChips { get; set; } = true;
+    public double ChipsOpacity { get; set; } = 1.0;
+    public double? ChipsLeft { get; set; }
+    public double? ChipsTop { get; set; }
     public int RefreshSeconds { get; set; } = 60;
     public string CollectionLevel { get; set; } = "Standard";
     public bool AllowUnverifiedCollectors { get; set; }

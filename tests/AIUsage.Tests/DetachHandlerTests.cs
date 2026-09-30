@@ -178,6 +178,36 @@ public class DetachHandlerTests
     }
 
     [Fact]
+    public async Task A_standalone_app_can_be_docked_without_any_prior_detach()
+    {
+        var pipe = NewName();
+        await using var app = await App.StartAsync(pipe, adoptState: false);   // started on its own
+        var launched = false;
+        var handler = Handler(pipe, launch: () => { launched = true; return false; });
+        DockRequest? got = null;
+        handler.DockRequested += r => { got = r; return Task.FromResult(true); };
+
+        await handler.StartAsync(CancellationToken.None);   // Host start-up / app announcement
+        var docked = await WpfHost.Call(() => app.Service.RequestDockAsync(900, 700));
+
+        Assert.True(docked);
+        Assert.False(launched);   // probing never starts the app
+        Assert.Equal(new WidgetPoint(900, 700), got!.ScreenCursor);
+        Assert.False(handler.IsDetached);
+        await handler.ShutdownAsync();
+    }
+
+    [Fact]
+    public async Task Probing_with_no_app_running_does_nothing_and_can_be_repeated()
+    {
+        var handler = Handler(NewName());
+        await handler.StartAsync(CancellationToken.None);
+        await handler.StartAsync(CancellationToken.None);
+        Assert.False(handler.IsDetached);
+        await handler.ShutdownAsync();
+    }
+
+    [Fact]
     public async Task A_declined_dock_leaves_the_app_as_the_owner()
     {
         var pipe = NewName();

@@ -85,6 +85,11 @@ public sealed class ClaudeOAuthUsageCollector : IUsageCollector
         {
             return CollectorResult.SignedOut(Loc.Msg("msg.claudeRejected"), detail);
         }
+        if (response.StatusCode == HttpStatusCode.TooManyRequests)
+        {
+            var wait = RetryDelay(response);
+            return CollectorResult.RateLimited(Loc.Msg("msg.rateLimited", DateTimeOffset.Now.Add(wait).ToString("HH:mm")), wait, detail);
+        }
         if (!response.IsSuccessStatusCode) return CollectorResult.Fail(Loc.Msg("msg.httpError", (int)response.StatusCode), detail);
 
         using var body = JsonDocument.Parse(await response.Content.ReadAsStringAsync(cancellationToken));
@@ -125,6 +130,17 @@ public sealed class ClaudeOAuthUsageCollector : IUsageCollector
             ModelBreakdown = models,
             ExtraUsage = extra
         };
+    }
+
+    private static readonly TimeSpan DefaultRetryDelay = TimeSpan.FromMinutes(5);
+    private static readonly TimeSpan MaxRetryDelay = TimeSpan.FromMinutes(30);
+
+    // Honors Retry-After (seconds or a date); without one, back off for a few minutes rather than polling into the limit.
+    public static TimeSpan RetryDelay(HttpResponseMessage response)
+    {
+        var retry = response.Headers.RetryAfter;
+        var wait = retry?.Delta ?? (retry?.Date is { } date ? date - DateTimeOffset.UtcNow : DefaultRetryDelay);
+        return wait < TimeSpan.FromSeconds(60) ? TimeSpan.FromSeconds(60) : wait > MaxRetryDelay ? MaxRetryDelay : wait;
     }
 
     private static Task<HttpResponseMessage> SendAsync(string token, CancellationToken cancellationToken)

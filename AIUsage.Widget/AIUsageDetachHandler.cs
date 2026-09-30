@@ -90,15 +90,30 @@ public sealed class AIUsageDetachHandler : IWidgetDetachHandler
         }
     }
 
+    // Connects to an app that was started on its own (never launches one), so its mini widget can be dropped onto
+    // the Host without a prior drag-out. Called when the Host starts and whenever an app announces itself.
+    public async Task StartAsync(CancellationToken cancellationToken)
+    {
+        if (!await _gate.WaitAsync(0, cancellationToken).ConfigureAwait(false)) return; // a hand-over is in progress
+        try
+        {
+            await ConnectAsync(cancellationToken, launch: false).ConfigureAwait(false);
+        }
+        finally
+        {
+            _gate.Release();
+        }
+    }
+
     // Connects to the running app, starting it first when nobody is listening. Null when that does not work out.
-    private async Task<HandoffChannel?> ConnectAsync(CancellationToken ct)
+    private async Task<HandoffChannel?> ConnectAsync(CancellationToken ct, bool launch = true)
     {
         if (_channel is { IsClosed: false } existing) return existing;
 
         var channel = await TryConnectAsync(TimeSpan.FromMilliseconds(300), ct).ConfigureAwait(false);
         if (channel == null)
         {
-            if (!_launchApp()) return null;
+            if (!launch || !_launchApp()) return null;
             var deadline = DateTime.UtcNow + _launchTimeout;
             while (channel == null && DateTime.UtcNow < deadline && !ct.IsCancellationRequested)
             {
@@ -163,10 +178,12 @@ public sealed class AIUsageDetachHandler : IWidgetDetachHandler
             case HandoffTypes.DockRequest:
                 var accepted = false;
                 var handler = DockRequested;
-                if (handler != null && _detached)
+                if (handler != null)
                 {
                     try
                     {
+                        // The widget is created inside this call while the app still runs; let it through.
+                        using var arrival = DockArrival.Begin();
                         accepted = await handler(new DockRequest(message.StateVersion, message.StateJson ?? "",
                             new WidgetPoint(message.CursorX, message.CursorY))).ConfigureAwait(false);
                     }
@@ -175,7 +192,7 @@ public sealed class AIUsageDetachHandler : IWidgetDetachHandler
                         AppLog.Write("dock request failed: " + ex.Message);
                     }
                 }
-                if (accepted) _detached = false; // ownership is back with the Host; the app closes itself now
+                if (accepted) _detached = false; // ownership is back with the Host; the app hides its widget
                 return new HandoffMessage { Type = HandoffTypes.Docked, Accepted = accepted, Reason = accepted ? null : "declined" };
 
             default:

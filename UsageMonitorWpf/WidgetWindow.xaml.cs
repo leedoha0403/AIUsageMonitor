@@ -38,6 +38,8 @@ public partial class WidgetWindow : Window
     private readonly HandleWindow _handle = new();
     private AppHandoffService? _handoff;
     private bool _hoveringHost;
+    private bool _doubleClickPending;
+    private DateTime _adoptedAt = DateTime.MinValue;
     private DateTime _lastHoverSent;
     private readonly DispatcherTimer _hideTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
     private DockEdge _edge;
@@ -68,6 +70,19 @@ public partial class WidgetWindow : Window
             _hideTimer.Stop();
             if (_folded && _revealed && !_dragging && !CursorInside() && !ContextMenuOpen()) SlideIn();
         };
+        // Safety net for "one owner": if the Host keeps the widget while this one is still up (a hand-over that
+        // raced with another, a stale Show), this one steps aside.
+        var ownerCheck = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        var conflictTicks = 0;
+        ownerCheck.Tick += (_, _) =>
+        {
+            if (!IsShown || _dragging || !HostHoldsWidget()) { conflictTicks = 0; return; }
+            if (++conflictTicks < 2) return;
+            conflictTicks = 0;
+            AIUsage.Core.AppLog.Write("widget hidden: the Host owns the mini widget");
+            HideWidget();
+        };
+        ownerCheck.Start();
         MouseEnter += (_, _) => _hideTimer.Stop();
         MouseLeave += (_, _) =>
         {
@@ -105,11 +120,19 @@ public partial class WidgetWindow : Window
     }
 
     // Lets the widget follow a ModuleDock Host: it reports when it is dragged over it and hands ownership over on drop.
+    // Raised once a Host has taken over the mini widget.
+    public event Action? DockedIntoHost;
+
+    // Raised when a Host hands the widget over (it was shown at the Host's drop position).
+    public event Action? ShownByHost;
+
     public void AttachHandoff(AppHandoffService handoff) => _handoff = handoff;
 
     // Shows the widget where a Host dropped it (virtual-screen physical pixels).
     public void ShowAtScreenBounds(double x, double y, double width, double height, double dpi)
     {
+        _adoptedAt = DateTime.UtcNow;
+        ShownByHost?.Invoke();
         StopAnimation();
         _hideTimer.Stop();
         var scale = VisualTreeHelper.GetDpi(this);
@@ -140,6 +163,7 @@ public partial class WidgetWindow : Window
     // Shows the widget at its saved spot, re-aligned to its docked edge; a folded widget shows only its handle.
     public void ShowAtSavedPlacement()
     {
+        if (HostHoldsWidget()) return;
         var state = _viewModel.State;
         StopAnimation();
         if (!IsVisible) Show();
@@ -179,6 +203,12 @@ public partial class WidgetWindow : Window
         Activate();
     }
 
+    // While a Host owns the mini widget (its widget announces itself with the presence mutex), none of the app's own
+    // triggers (login prompt, chips, tray, a stale Show) may bring a second one up. A hand-over from the Host
+    // (ShowAtScreenBounds) is the one way in, and it runs while the Host still holds the widget.
+    private static bool HostHoldsWidget() =>
+        AIUsage.Core.AppIdentity.IsHeldByAnotherProcess(AIUsage.Core.AppIdentity.WidgetPresenceMutexName);
+
     // Brings a folded widget out (handle hover, login prompt, chips click).
     public void Reveal()
     {
@@ -188,6 +218,7 @@ public partial class WidgetWindow : Window
     // Flyout opened from the chips: an undocked widget pops up just above them.
     public void ShowAbove(Rect anchor)
     {
+        if (HostHoldsWidget()) return;
         if (_edge != DockEdge.None)
         {
             ShowAtSavedPlacement();
@@ -218,11 +249,10 @@ public partial class WidgetWindow : Window
 
     private void Widget_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.ClickCount == 2)
-        {
-            _openDashboard();
-            return;
-        }
+        // Opens on release, and only when the press did not become a drag (a quick second press of a drag back and forth
+        // right after a hand-over is not a double-click).
+        // Quick clicks right after a hand-over are drag attempts on the widget that just appeared under the cursor.
+        _doubleClickPending = e.ClickCount == 2 && DateTime.UtcNow - _adoptedAt > TimeSpan.FromSeconds(5);
 
         StopAnimation();
         _hideTimer.Stop();
@@ -289,7 +319,13 @@ public partial class WidgetWindow : Window
         DragTo(CursorDip());
         _dragging = false;
         ((UIElement)sender).ReleaseMouseCapture();
-        if (!_moved) return;
+        if (!_moved)
+        {
+            if (_doubleClickPending) _openDashboard();
+            _doubleClickPending = false;
+            return;
+        }
+        _doubleClickPending = false;
         // Dropped onto a ModuleDock Host: hand ownership over. If the Host declines, this stays a normal drop.
         if (await TryDockIntoHostAsync()) return;
         if (_folded) _revealed = true;
@@ -332,9 +368,10 @@ public partial class WidgetWindow : Window
         }
         if (!over) return false;
         if (!await _handoff.RequestDockAsync(x, y)) return false;
-        // The Host owns the widget now: close this one and stop collecting by exiting.
+        // The Host owns the widget now: hide this one. The app keeps running in the tray; the Host's widget yields
+        // collection to it (one collector at a time).
         HideWidget();
-        _exitApp();
+        DockedIntoHost?.Invoke();
         return true;
     }
 

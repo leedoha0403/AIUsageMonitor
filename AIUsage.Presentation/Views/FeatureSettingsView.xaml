@@ -33,6 +33,8 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <TextBlock Text="{DynamicResource ui.collectionLevel}" VerticalAlignment="Center" />
                     <ComboBox Grid.Column="1" ItemsSource="{Binding CollectionLevels}" SelectedValuePath="Value" SelectedValue="{Binding CollectionLevel}" Margin="0,0,0,10" />
@@ -42,14 +44,18 @@
                     <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding ProviderIds}" SelectedValuePath="Value" SelectedValue="{Binding FavoriteProvider}" Margin="0,0,0,10" />
                     <TextBlock Grid.Row="3" Text="{DynamicResource ui.displayUsageAs}" VerticalAlignment="Center" />
                     <ComboBox Grid.Row="3" Grid.Column="1" ItemsSource="{Binding DisplayOptions}" SelectedValuePath="Value" SelectedValue="{Binding DisplayUsageAs}" Margin="0,0,0,10" />
-                    <TextBlock Grid.Row="4" Text="{DynamicResource ui.language}" VerticalAlignment="Center" />
-                    <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding Languages}" SelectedValuePath="Value" SelectedValue="{Binding Language}" Margin="0,0,0,10" />
-                    <TextBlock Grid.Row="5" Text="{DynamicResource ui.notifications}" VerticalAlignment="Center" />
-                    <CheckBox Grid.Row="5" Grid.Column="1" IsChecked="{Binding NotificationsEnabled}" VerticalAlignment="Center" Margin="0,0,0,10" />
-                    <TextBlock Grid.Row="6" Text="{DynamicResource ui.thresholds}" VerticalAlignment="Center" />
-                    <TextBox Grid.Row="6" Grid.Column="1" Text="{Binding ThresholdsText, UpdateSourceTrigger=LostFocus}" Margin="0,0,0,10" ToolTip="{DynamicResource ui.thresholdsTip}" />
-                    <TextBlock Grid.Row="7" Grid.ColumnSpan="2" Style="{StaticResource Muted}"><Run Text="{DynamicResource ui.dataDirectory}" /><Run Text="{Binding DataDirectory, Mode=OneWay}" /></TextBlock>
-                    <TextBlock Grid.Row="8" Grid.ColumnSpan="2" Text="{Binding FetchWarning}" Style="{StaticResource Muted}" Margin="0,10,0,0" />
+                    <TextBlock Grid.Row="4" Text="{DynamicResource ui.widgetMode}" VerticalAlignment="Center" />
+                    <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding WidgetModes}" SelectedValuePath="Value" SelectedValue="{Binding WidgetMode}" Margin="0,0,0,10" />
+                    <TextBlock Grid.Row="5" Text="{DynamicResource ui.language}" VerticalAlignment="Center" />
+                    <ComboBox Grid.Row="5" Grid.Column="1" ItemsSource="{Binding Languages}" SelectedValuePath="Value" SelectedValue="{Binding Language}" Margin="0,0,0,10" />
+                    <TextBlock Grid.Row="6" Text="{DynamicResource ui.notifications}" VerticalAlignment="Center" />
+                    <CheckBox Grid.Row="6" Grid.Column="1" IsChecked="{Binding NotificationsEnabled}" VerticalAlignment="Center" Margin="0,0,0,10" />
+                    <TextBlock Grid.Row="7" Text="{DynamicResource ui.thresholds}" VerticalAlignment="Center" />
+                    <TextBox Grid.Row="7" Grid.Column="1" Text="{Binding ThresholdsText, UpdateSourceTrigger=LostFocus}" Margin="0,0,0,10" ToolTip="{DynamicResource ui.thresholdsTip}" />
+                    <TextBlock Grid.Row="8" Text="{DynamicResource ui.taskbarChips}" VerticalAlignment="Center" />
+                    <CheckBox Grid.Row="8" Grid.Column="1" IsChecked="{Binding ShowTaskbarChips}" VerticalAlignment="Center" Margin="0,0,0,10" />
+                    <TextBlock Grid.Row="9" Grid.ColumnSpan="2" Style="{StaticResource Muted}"><Run Text="{DynamicResource ui.dataDirectory}" /><Run Text="{Binding DataDirectory, Mode=OneWay}" /></TextBlock>
+                    <TextBlock Grid.Row="10" Grid.ColumnSpan="2" Text="{Binding FetchWarning}" Style="{StaticResource Muted}" Margin="0,10,0,0" />
                 </Grid>
             </Border>
         </StackPanel>

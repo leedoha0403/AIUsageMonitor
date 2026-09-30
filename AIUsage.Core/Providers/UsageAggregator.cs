@@ -54,6 +54,13 @@ public sealed class UsageAggregator
                 continue;
             }
 
+            // Rate limited earlier: do not hit the endpoint again before it said we may (keep what we have).
+            if (!force && !isLocal && info.BackoffUntil is { } until && now < until)
+            {
+                failed = true;
+                continue;
+            }
+
             CollectorResult result;
             var sw = Stopwatch.StartNew();
             try
@@ -70,6 +77,7 @@ public sealed class UsageAggregator
             info.Message = result.Message;
             info.Detail = result.Detail;
             info.Status = result.Success ? "SUCCESS" : result.NotSignedIn ? "NOT_SIGNED_IN" : "FAILED";
+            info.BackoffUntil = result.RetryAfter is { } retry ? now + retry : null;
             if (!result.Success)
             {
                 signedOut |= result.NotSignedIn;

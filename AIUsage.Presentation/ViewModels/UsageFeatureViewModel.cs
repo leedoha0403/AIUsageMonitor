@@ -63,6 +63,7 @@ public class UsageFeatureViewModel : ObservableObject, IDisposable
         DashboardProviders = new ObservableCollection<ProviderViewModel>();
         _language = State.Settings.Language;
         _displayUsageAs = State.Settings.DisplayUsageAs;
+        _widgetMode = WidgetModeValues.Contains(State.Settings.WidgetMode) ? State.Settings.WidgetMode : "Normal";
         _collectionLevel = State.Settings.CollectionLevel;
         _refreshSeconds = State.Settings.RefreshSeconds;
         _historyRange = RangeSpans.ContainsKey(State.Settings.HistoryRange) ? State.Settings.HistoryRange : "1D";
@@ -440,9 +441,27 @@ public class UsageFeatureViewModel : ObservableObject, IDisposable
         private set => Set(ref _isRefreshing, value);
     }
 
-    // Density hints for the detail/summary views; a shell with a user-selectable density overrides them.
-    public virtual bool IsCompact => false;
-    public virtual bool IsDetailed => true;
+    // Content density of the mini summary (Compact / Normal / Detailed). A feature option that every surface
+    // (standalone mini window, Host-docked Natural view) honors; it is persisted with the feature state.
+    private static readonly string[] WidgetModeValues = ["Compact", "Normal", "Detailed"];
+    private string _widgetMode;
+    public IReadOnlyList<OptionItem> WidgetModes { get; } = Options("Compact", "Normal", "Detailed");
+
+    public string WidgetMode
+    {
+        get => _widgetMode;
+        set
+        {
+            if (value == null || !WidgetModeValues.Contains(value) || !Set(ref _widgetMode, value)) return;
+            State.Settings.WidgetMode = value;
+            SaveStateOnly();
+            OnPropertyChanged(nameof(IsCompact));
+            OnPropertyChanged(nameof(IsDetailed));
+        }
+    }
+
+    public bool IsCompact => WidgetMode == "Compact";
+    public bool IsDetailed => WidgetMode == "Detailed";
     public bool ShowRemaining => DisplayUsageAs == "Remaining";
     // The single account a collapsed summary shows: the primary one, else the first visible.
     public ProviderViewModel? SummaryProvider => MiniProviders.FirstOrDefault(p => p.IsPrimary) ?? MiniProviders.FirstOrDefault();
@@ -490,6 +509,73 @@ public class UsageFeatureViewModel : ObservableObject, IDisposable
     // ---- Ownership hand-over: the feature state that travels between a Host widget and the standalone app.
 
     // Snapshot of everything the feature owns (accounts, settings, refresh log); shell/Host values are excluded.
+    // ---- Taskbar chips (feature state: the owner of the widget shows them)
+
+    public bool ShowTaskbarChips
+    {
+        get => State.Settings.ShowTaskbarChips;
+        set { State.Settings.ShowTaskbarChips = value; OnPropertyChanged(); SaveStateOnly(); }
+    }
+
+    public double ChipsOpacity
+    {
+        get => State.Settings.ChipsOpacity;
+        set
+        {
+            var clamped = Math.Round(Math.Clamp(value, 0.2, 1.0), 2);
+            if (Math.Abs(State.Settings.ChipsOpacity - clamped) < 0.001) return;
+            State.Settings.ChipsOpacity = clamped;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(ChipsOpacityText));
+            SaveStateOnly();
+        }
+    }
+
+    public string ChipsOpacityText => $"{ChipsOpacity * 100:0}%";
+
+    public void SaveChipsPlacement(double left, double top)
+    {
+        State.ChipsLeft = left;
+        State.ChipsTop = top;
+        SaveStateOnly();
+    }
+
+    // The chips settings of another owner win even when the rest of its state is not taken over (an app that was
+    // already running keeps its own, fresher, accounts).
+    public void AdoptChipsSettings(FeatureStateSnapshot snapshot)
+    {
+        State.ChipsLeft = snapshot.Settings.ChipsLeft;
+        State.ChipsTop = snapshot.Settings.ChipsTop;
+        ChipsOpacity = snapshot.Settings.ChipsOpacity;
+        ShowTaskbarChips = snapshot.Settings.ShowTaskbarChips;
+    }
+
+    // The collected numbers and their provenance; account settings (name, visibility, schedule) stay as they were.
+    private static void CopyCollectedUsage(UsageProviderState from, UsageProviderState to)
+    {
+        to.Plan = from.Plan;
+        to.Status = from.Status;
+        to.Source = from.Source;
+        to.Confidence = from.Confidence;
+        to.SessionUsagePercent = from.SessionUsagePercent;
+        to.SessionResetAt = from.SessionResetAt;
+        to.WeeklyUsagePercent = from.WeeklyUsagePercent;
+        to.WeeklyResetAt = from.WeeklyResetAt;
+        to.ExtraUsageCost = from.ExtraUsageCost;
+        to.ExtraUsage = from.ExtraUsage;
+        to.CreditsBalance = from.CreditsBalance;
+        to.ModelBreakdown = from.ModelBreakdown;
+        to.CollectedAt = from.CollectedAt;
+        to.LastSuccessAt = from.LastSuccessAt;
+        to.SessionResetObservedAt = from.SessionResetObservedAt;
+        to.ConsecutiveFailures = from.ConsecutiveFailures;
+        to.Message = from.Message;
+        to.LastNotifiedThreshold = from.LastNotifiedThreshold;
+        to.NotifiedWindowResetAt = from.NotifiedWindowResetAt;
+        to.FieldSources = from.FieldSources;
+        to.Collectors = from.Collectors;
+    }
+
     public FeatureStateSnapshot CaptureFeatureState() => FeatureStateSnapshot.Capture(State);
 
     // Takes over another instance's feature state in place (the scheduler and view models keep their references).
@@ -497,8 +583,15 @@ public class UsageFeatureViewModel : ObservableObject, IDisposable
     {
         var incoming = snapshot.ToAppState();
 
+        var previous = State.Providers.ToDictionary(p => p.Key, p => p.Value);
         State.Providers.Clear();
-        foreach (var (key, account) in incoming.Providers) State.Providers[key] = account;
+        foreach (var (key, account) in incoming.Providers)
+        {
+            // An older copy must not send the numbers back in time: keep what this side collected more recently.
+            if (previous.TryGetValue(key, out var current) && current.LastSuccessAt > (account.LastSuccessAt ?? DateTimeOffset.MinValue))
+                CopyCollectedUsage(current, account);
+            State.Providers[key] = account;
+        }
         State.RefreshLog.Clear();
         State.RefreshLog.AddRange(incoming.RefreshLog);
 
@@ -520,6 +613,10 @@ public class UsageFeatureViewModel : ObservableObject, IDisposable
         HistoryChartMode = next.HistoryChartMode;
         FavoriteProvider = next.FavoriteProvider;
         CollectionLevel = next.CollectionLevel;
+        State.ChipsLeft = incoming.ChipsLeft;
+        State.ChipsTop = incoming.ChipsTop;
+        ChipsOpacity = next.ChipsOpacity;
+        ShowTaskbarChips = next.ShowTaskbarChips;
 
         RebuildProviders();
         SaveStateOnly();
@@ -989,7 +1086,7 @@ public class UsageFeatureViewModel : ObservableObject, IDisposable
     private void OnLanguageChanged()
     {
         LocResources.Apply(Language);
-        foreach (var option in new[] { Languages, DisplayOptions, CollectionLevels, HistoryRanges, ProviderIds, RefreshIntervals }.SelectMany(x => x))
+        foreach (var option in new[] { Languages, DisplayOptions, WidgetModes, CollectionLevels, HistoryRanges, ProviderIds, RefreshIntervals }.SelectMany(x => x))
         {
             option.Refresh();
         }

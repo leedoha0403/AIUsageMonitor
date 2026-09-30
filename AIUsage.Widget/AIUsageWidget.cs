@@ -23,7 +23,11 @@ public sealed class AIUsageWidget : IComposableWidget
     private readonly List<IDisposable> _subscriptions = new();
     private readonly string _standaloneMutexName;
     private readonly string _widgetMutexName;
+    private readonly string _presenceMutexName;
+    private Mutex? _presence;
     private Dispatcher? _dispatcher;
+    private readonly bool _showChips;
+    private UsageChipsWindow? _chips;
 
     // The Host's plugin loader only registers widgets with a truly parameterless constructor (optional
     // parameters do not count), so this one must stay.
@@ -32,8 +36,13 @@ public sealed class AIUsageWidget : IComposableWidget
     }
 
     // Mutex names are overridable so tests (and side-by-side installs) do not clash with the real ones.
-    public AIUsageWidget(string? standaloneMutexName, string? widgetMutexName)
+    public AIUsageWidget(string? standaloneMutexName, string? widgetMutexName, string? presenceMutexName = null)
     {
+        // Tests build widgets with private mutex names and must not put a topmost window on the screen.
+        _showChips = standaloneMutexName == null && widgetMutexName == null;
+        _presenceMutexName = presenceMutexName ?? (standaloneMutexName == null && widgetMutexName == null
+            ? AppIdentity.WidgetPresenceMutexName
+            : "Local\\AIUsage-Widget-Presence-" + Guid.NewGuid().ToString("N"));
         _standaloneMutexName = standaloneMutexName ?? AppIdentity.StandaloneMutexName;
         _widgetMutexName = widgetMutexName ?? AppIdentity.WidgetMutexName;
     }
@@ -42,6 +51,11 @@ public sealed class AIUsageWidget : IComposableWidget
 
     public Task InitializeAsync(IWidgetContext context, CancellationToken cancellationToken)
     {
+        // One owner of the mini widget: refuse to appear next to a running app, except when that app's widget is
+        // being dropped onto the Host. (The Host logs the refusal and skips the widget, without a dialog.)
+        if (!DockArrival.InProgress && AppIdentity.IsHeldByAnotherProcess(_standaloneMutexName))
+            throw new WidgetRefusedException("AI Usage is running as its own application; only one owner may show the widget.");
+
         _context = context;
         // Handlers reach the view model lazily: it is only built once the UI thread asks for a view.
         _subscriptions.Add(context.Commands.Register(AIUsageWidgetManifest.RefreshCommand, async (_, _) =>
@@ -69,8 +83,20 @@ public sealed class AIUsageWidget : IComposableWidget
     {
         EnsureViewModel(context);
         var view = new UsageDetailView { DataContext = _viewModel };
+        HostThemeBridge.ApplyFont(view);
         view.AddFeatureSettingsTab();
-        return view;
+        // Same layout as the standalone window: banner on top, the dashboard below, an outer margin around both.
+        var header = new UsageDashboardHeader { DataContext = _viewModel };
+        HostThemeBridge.ApplyFont(header);
+        var root = new System.Windows.Controls.Grid { Margin = new System.Windows.Thickness(22) };
+        root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = System.Windows.GridLength.Auto });
+        root.RowDefinitions.Add(new System.Windows.Controls.RowDefinition { Height = new System.Windows.GridLength(1, System.Windows.GridUnitType.Star) });
+        view.Margin = new System.Windows.Thickness(0, 20, 0, 0);
+        System.Windows.Controls.Grid.SetRow(view, 1);
+        HostThemeBridge.Watch(root);
+        root.Children.Add(header);
+        root.Children.Add(view);
+        return root;
     }
 
     public async Task SaveStateAsync(IWidgetStateWriter writer)
@@ -111,6 +137,15 @@ public sealed class AIUsageWidget : IComposableWidget
         _ownershipTimer = null;
         _ownership?.Dispose();
         _ownership = null;
+        if (_presence != null)
+        {
+            try { _presence.ReleaseMutex(); }
+            catch (ApplicationException) { }
+            _presence.Dispose();
+            _presence = null;
+        }
+        _chips?.CloseForExit();
+        _chips = null;
         _viewModel?.Dispose();
         _viewModel = null;
         _store = null;
@@ -122,7 +157,11 @@ public sealed class AIUsageWidget : IComposableWidget
         if (_viewModel != null) return;
 
         _dispatcher = Dispatcher.CurrentDispatcher;
+        // Announce the widget's existence so the app refuses a plain start while it is in the Host.
+        _presence = new Mutex(true, _presenceMutexName, out var presenceCreated);
+        if (!presenceCreated) { _presence.Dispose(); _presence = null; }
         PresentationResources.EnsureThemeDefaults();
+        HostThemeBridge.Apply();
         _store = new HostStateStore(_restored, new StateStore());
         var ui = new HostUiServices(context.Permissions);
         var viewModel = new UsageFeatureViewModel(_store, ui);
@@ -137,8 +176,32 @@ public sealed class AIUsageWidget : IComposableWidget
         };
 
         StartOwnership(viewModel);
+        StartChips(viewModel);
         _ = RequestPermissionsAsync(context, viewModel);
     }
+
+    // The taskbar chips are part of the feature: while this widget owns it they show from the same setting, and a
+    // click on them opens the Host's detail window (the one main screen).
+    private void StartChips(UsageFeatureViewModel viewModel)
+    {
+        if (!_showChips) return;
+        void Apply()
+        {
+            if (viewModel.ShowTaskbarChips)
+            {
+                _chips ??= new UsageChipsWindow(viewModel, new ChipsActions { Click = OpenDetail, OpenDashboard = OpenDetail });
+                _chips.ShowChips();
+            }
+            else _chips?.Hide();
+        }
+        viewModel.PropertyChanged += (_, e) =>
+        {
+            if (e.PropertyName == nameof(UsageFeatureViewModel.ShowTaskbarChips)) Apply();
+        };
+        Apply();
+    }
+
+    private static void OpenDetail() => AppIdentity.TryOpenHostDetail();
 
     // One collector at a time: yield to the standalone app (or another widget process) and take over when it leaves.
     private void StartOwnership(UsageFeatureViewModel viewModel)
@@ -147,6 +210,12 @@ public sealed class AIUsageWidget : IComposableWidget
         void Check()
         {
             _ownership.Evaluate();
+            // A hand-over can create this widget before the previous instance released the presence mutex.
+            if (_presence == null)
+            {
+                _presence = new Mutex(true, _presenceMutexName, out var created);
+                if (!created) { _presence.Dispose(); _presence = null; }
+            }
             viewModel.SetCollectionSuspended(!_ownership.MayCollect);
         }
 

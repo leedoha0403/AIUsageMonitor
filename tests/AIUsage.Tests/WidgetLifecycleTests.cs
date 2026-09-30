@@ -37,7 +37,7 @@ public class WidgetLifecycleTests
             var instance = await runtime.CreateInstanceAsync(AIUsageWidgetManifest.WidgetId);
 
             var summary = (HostSummaryView)runtime.GetSummaryView(instance);
-            var detail = (UsageDetailView)runtime.CreateDetailView(instance)!;
+            var detail = DetailOf(runtime.CreateDetailView(instance)!);
 
             Assert.IsType<UsageFeatureViewModel>(summary.DataContext);
             Assert.Same(summary.DataContext, detail.DataContext);   // spec §9
@@ -107,7 +107,7 @@ public class WidgetLifecycleTests
         {
             var runtime = NewRuntime(new InMemoryWidgetStateStore());
             var instance = await runtime.CreateInstanceAsync(AIUsageWidgetManifest.WidgetId);
-            var detail = (UsageDetailView)runtime.CreateDetailView(instance)!;
+            var detail = DetailOf(runtime.CreateDetailView(instance)!);
 
             var tabs = (TabControl)detail.FindName("DetailTabs");
             Assert.Equal(7, tabs.Items.Count);   // overview, history, accounts, snapshot, diagnostics, refresh, settings
@@ -293,4 +293,8 @@ public class WidgetLifecycleTests
             await all.ShutdownAsync();
         });
     }
+
+    // The detail surface is a banner plus the dashboard view; tests look at the dashboard.
+    private static UsageDetailView DetailOf(object root) =>
+        ((System.Windows.Controls.Panel)root).Children.OfType<UsageDetailView>().Single();
 }

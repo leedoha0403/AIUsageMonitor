@@ -1,4 +1,3 @@
-using UsageMonitorWpf.ViewModels;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
@@ -6,34 +5,50 @@ using System.Windows.Interop;
 using System.Windows.Threading;
 using AIUsage.Presentation.ViewModels;
 
-namespace UsageMonitorWpf;
+namespace AIUsage.Presentation.Views;
 
-// Always-visible chips docked just above the taskbar near the tray. Click toggles the flyout (mini widget),
-// double-click opens the dashboard, drag moves it (position is remembered).
-public partial class ChipsWindow : Window
+// What the owner of the chips (the standalone app or a Host widget) does for the chips' gestures. Optional
+// entries are left out of the menu.
+public sealed class ChipsActions
+{
+    public required Action Click { get; init; }
+    public required Action OpenDashboard { get; init; }
+    public Action? ShowWidget { get; init; }
+    public Func<bool>? IsWidgetShown { get; init; }
+    public Action? Exit { get; init; }
+    public Func<bool>? HoverOpaque { get; init; }
+}
+
+// Always-visible chips docked just above the taskbar near the tray. Click runs Click, double-click opens the
+// dashboard, drag moves it (position is remembered in the feature state).
+public partial class UsageChipsWindow : Window
 {
     private static readonly IntPtr HwndTopmost = new(-1);
     private const uint SwpNoSizeMoveActivate = 0x0001 | 0x0002 | 0x0010;
-    private readonly MainViewModel _viewModel;
-    private readonly Action _toggleFlyout;
-    private readonly Action _openDashboard;
-    private readonly Action _exitApp;
-    private readonly Action _showWidget;
-    private readonly Func<bool> _isWidgetShown;
+    private readonly UsageFeatureViewModel _viewModel;
+    private readonly ChipsActions _actions;
     private readonly DispatcherTimer _topmostTimer = new() { Interval = TimeSpan.FromSeconds(3) };
     private bool _closingForExit;
 
-    public ChipsWindow(MainViewModel viewModel, Action toggleFlyout, Action openDashboard, Action exitApp, Action showWidget, Func<bool> isWidgetShown)
+    public UsageChipsWindow(UsageFeatureViewModel viewModel, ChipsActions actions)
     {
         InitializeComponent();
         DataContext = viewModel;
         _viewModel = viewModel;
-        _toggleFlyout = toggleFlyout;
-        _openDashboard = openDashboard;
-        _exitApp = exitApp;
-        _showWidget = showWidget;
-        _isWidgetShown = isWidgetShown;
-        WindowOpacity.AttachChips(this, viewModel);
+        _actions = actions;
+        ShowWidgetMenuItem.Visibility = actions.ShowWidget == null ? Visibility.Collapsed : Visibility.Visible;
+        ExitMenuItem.Visibility = actions.Exit == null ? Visibility.Collapsed : Visibility.Visible;
+
+        System.ComponentModel.PropertyChangedEventHandler onChanged = (_, e) =>
+        {
+            if (e.PropertyName == nameof(UsageFeatureViewModel.ChipsOpacity)) ApplyOpacity();
+        };
+        viewModel.PropertyChanged += onChanged;
+        MouseEnter += (_, _) => ApplyOpacity();
+        MouseLeave += (_, _) => ApplyOpacity();
+        Closed += (_, _) => viewModel.PropertyChanged -= onChanged;
+        ApplyOpacity();
+
         SizeChanged += (_, _) => { if (!_viewModel.State.ChipsLeft.HasValue) PlaceDefault(); };
         // The taskbar raises itself over topmost windows when clicked; re-assert our z-order.
         _topmostTimer.Tick += (_, _) =>
@@ -41,8 +56,7 @@ public partial class ChipsWindow : Window
             if (IsVisible) SetWindowPos(new WindowInteropHelper(this).Handle, HwndTopmost, 0, 0, 0, 0, SwpNoSizeMoveActivate);
         };
         IsVisibleChanged += (_, _) => { if (IsVisible) _topmostTimer.Start(); else _topmostTimer.Stop(); };
-        // Alt+F4 or an OS close request should only hide the chips (to the tray), like the dashboard's X button.
-        // Only CloseForExit (app shutdown) performs a real close.
+        // Alt+F4 or an OS close request only hides the chips; CloseForExit performs a real close.
         Closing += (_, e) =>
         {
             if (_closingForExit) return;
@@ -52,7 +66,11 @@ public partial class ChipsWindow : Window
         };
     }
 
-    // Called only when the whole app is shutting down; lets this window actually close.
+    // Opaque while hovered when the owner asks for it, otherwise the configured chips opacity.
+    public void ApplyOpacity() =>
+        Opacity = _actions.HoverOpaque?.Invoke() == true && IsMouseOver ? 1.0 : _viewModel.ChipsOpacity;
+
+    // Called when the owner goes away (app shutdown, widget removed); lets this window actually close.
     public void CloseForExit()
     {
         _closingForExit = true;
@@ -92,7 +110,7 @@ public partial class ChipsWindow : Window
     {
         if (e.ClickCount == 2)
         {
-            _openDashboard();
+            _actions.OpenDashboard();
             return;
         }
 
@@ -100,7 +118,7 @@ public partial class ChipsWindow : Window
         DragMove();
         if (Math.Abs(Left - before.X) < 2 && Math.Abs(Top - before.Y) < 2)
         {
-            _toggleFlyout();
+            _actions.Click();
         }
         else
         {
@@ -108,7 +126,7 @@ public partial class ChipsWindow : Window
         }
     }
 
-    private void OpenDashboard_Click(object sender, RoutedEventArgs e) => _openDashboard();
+    private void OpenDashboard_Click(object sender, RoutedEventArgs e) => _actions.OpenDashboard();
 
     private void HideChips_Click(object sender, RoutedEventArgs e)
     {
@@ -116,14 +134,15 @@ public partial class ChipsWindow : Window
         Hide();
     }
 
-    private void ShowWidget_Click(object sender, RoutedEventArgs e) => _showWidget();
+    private void ShowWidget_Click(object sender, RoutedEventArgs e) => _actions.ShowWidget?.Invoke();
 
     private void ContextMenu_Opened(object sender, RoutedEventArgs e)
     {
-        ShowWidgetMenuItem.Visibility = _isWidgetShown() ? Visibility.Collapsed : Visibility.Visible;
+        ShowWidgetMenuItem.Visibility = _actions.ShowWidget == null || _actions.IsWidgetShown?.Invoke() == true
+            ? Visibility.Collapsed : Visibility.Visible;
     }
 
-    private void Exit_Click(object sender, RoutedEventArgs e) => _exitApp();
+    private void Exit_Click(object sender, RoutedEventArgs e) => _actions.Exit?.Invoke();
 
     [DllImport("user32.dll")]
     private static extern bool SetWindowPos(IntPtr hWnd, IntPtr hWndInsertAfter, int x, int y, int cx, int cy, uint flags);
