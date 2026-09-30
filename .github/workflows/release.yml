@@ -32,8 +32,10 @@ jobs:
           $tag = "${{ github.ref_name }}"
           $version = $tag.TrimStart('v')
           $dir = "dist/release"
+          # Use release-notes/<tag>.md as the page body when present, otherwise let GitHub generate notes.
+          $notes = if (Test-Path "release-notes/$tag.md") { @('--notes-file', "release-notes/$tag.md") } else { @('--generate-notes') }
           gh release create $tag `
             "$dir/AIUsageMonitor-v$version-win-x64.zip" `
             "$dir/AIUsageMonitor.exe" `
             "$dir/SHA256SUMS.txt" `
-            --title $tag --generate-notes
+            --title $tag @notes
