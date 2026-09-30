@@ -68,6 +68,65 @@ public static class LoginHelper
         return true;
     }
 
+    private static readonly SemaphoreSlim RefreshGate = new(1, 1);
+    private static readonly Dictionary<string, DateTimeOffset> LastRefresh = new();
+
+    // Runs the CLI headlessly so it refreshes its own expired OAuth token (the app never touches the refresh token).
+    // Throttled per config folder so a genuinely signed-out account does not spawn a process every refresh.
+    public static async Task<bool> TryRefreshClaudeAsync(string configDirectory, CancellationToken cancellationToken)
+    {
+        var exe = FindCli("claude");
+        if (exe == null) return false;
+        var key = configDirectory ?? "";
+        await RefreshGate.WaitAsync(cancellationToken);
+        try
+        {
+            if (LastRefresh.TryGetValue(key, out var at) && DateTimeOffset.Now - at < TimeSpan.FromMinutes(5)) return false;
+            LastRefresh[key] = DateTimeOffset.Now;
+
+            var isCmd = exe.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase);
+            if (exe.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase)) return false;
+            var info = new ProcessStartInfo(isCmd ? "cmd.exe" : exe)
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
+            };
+            if (isCmd)
+            {
+                info.ArgumentList.Add("/c");
+                info.ArgumentList.Add(exe);
+            }
+            info.ArgumentList.Add("auth");
+            info.ArgumentList.Add("status");
+            if (!string.IsNullOrWhiteSpace(configDirectory)) info.Environment["CLAUDE_CONFIG_DIR"] = Environment.ExpandEnvironmentVariables(configDirectory);
+            using var process = Process.Start(info);
+            if (process == null) return false;
+            using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeout.CancelAfter(TimeSpan.FromSeconds(20));
+            try
+            {
+                await process.WaitForExitAsync(timeout.Token);
+                return process.ExitCode == 0;
+            }
+            catch (OperationCanceledException)
+            {
+                try { process.Kill(true); } catch { }
+                return false;
+            }
+        }
+        catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
+        {
+            return false;
+        }
+        finally
+        {
+            RefreshGate.Release();
+        }
+    }
+
     public static void LaunchInstall(string providerId)
     {
         var cli = Clis[providerId];

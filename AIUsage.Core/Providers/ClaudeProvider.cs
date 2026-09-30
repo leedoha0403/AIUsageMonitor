@@ -68,10 +68,18 @@ public sealed class ClaudeOAuthUsageCollector : IUsageCollector
             return CollectorResult.Fail(Loc.Msg("msg.readCredFail", "Claude"), $"{found.Label}: {ex.GetType().Name}");
         }
 
-        using var request = new HttpRequestMessage(HttpMethod.Get, UsageUrl);
-        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-        request.Headers.Add("anthropic-beta", "oauth-2025-04-20");
-        using var response = await Http.Client.SendAsync(request, cancellationToken);
+        var response = await SendAsync(token, cancellationToken);
+        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+        {
+            // The access token is short-lived and only the CLI refreshes it. Ask the CLI to do so, then retry once.
+            if (found.Label != "WSL" && await LoginHelper.TryRefreshClaudeAsync(context.Account.ConfigDirectory, cancellationToken) &&
+                await ReadAccessTokenAsync(found.Path, cancellationToken) is { } fresh && fresh != token)
+            {
+                response.Dispose();
+                response = await SendAsync(fresh, cancellationToken);
+            }
+        }
+        using var _ = response;
         var detail = Loc.Msg("msg.credential", $"{found.Label} · HTTP {(int)response.StatusCode}");
         if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
         {
@@ -117,6 +125,27 @@ public sealed class ClaudeOAuthUsageCollector : IUsageCollector
             ModelBreakdown = models,
             ExtraUsage = extra
         };
+    }
+
+    private static Task<HttpResponseMessage> SendAsync(string token, CancellationToken cancellationToken)
+    {
+        var request = new HttpRequestMessage(HttpMethod.Get, UsageUrl);
+        request.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+        request.Headers.Add("anthropic-beta", "oauth-2025-04-20");
+        return Http.Client.SendAsync(request, cancellationToken);
+    }
+
+    private static async Task<string?> ReadAccessTokenAsync(string path, CancellationToken cancellationToken)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(await File.ReadAllTextAsync(path, cancellationToken));
+            return doc.RootElement.TryGetProperty("claudeAiOauth", out var oauth) && oauth.TryGetProperty("accessToken", out var t) ? t.GetString() : null;
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 
     private static (double? Percent, DateTimeOffset? ResetAt) Window(JsonElement root, string name)
