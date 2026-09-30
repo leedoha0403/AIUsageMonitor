@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <RootNamespace>AIUsage.Presentation</RootNamespace>
+    <Version>0.9.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AIUsage.Core\AIUsage.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Fonts\**\*.ttf" />
+    <Resource Include="Assets\AppIcon.png" />
+    <!-- The bundled font is OFL-licensed: the license must ship with any app that uses it, also when this library
+         is consumed as a package (contentFiles are copied to the consuming app's output). -->
+    <None Include="Fonts\OFL-LICENSE.txt" CopyToOutputDirectory="PreserveNewest"
+          Pack="true" PackagePath="contentFiles/any/any/Fonts" PackageCopyToOutput="true" />
+  </ItemGroup>
+
+</Project>

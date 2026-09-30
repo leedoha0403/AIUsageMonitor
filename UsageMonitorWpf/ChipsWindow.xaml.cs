@@ -1,9 +1,10 @@
+using UsageMonitorWpf.ViewModels;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Threading;
-using UsageMonitorWpf.ViewModels;
+using AIUsage.Presentation.ViewModels;
 
 namespace UsageMonitorWpf;
 

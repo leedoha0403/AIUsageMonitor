@@ -1,6 +1,7 @@
+using UsageMonitorWpf.ViewModels;
 using System.ComponentModel;
 using System.Windows;
-using UsageMonitorWpf.ViewModels;
+using AIUsage.Presentation.ViewModels;
 
 namespace UsageMonitorWpf;
 

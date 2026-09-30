@@ -9,7 +9,7 @@ License: SIL Open Font License 1.1
 Copyright: Copyright (c) 2015-10-09 Spoqa (spoqa.com), with Reserved Font Name Spoqa Han Sans; Copyright (c) 2015-10-09 Spoqa (spoqa.com), with Reserved Font Name Spoqa Han Sans JP; Copyright (c) 2020-11-30 Spoqa (spoqa.com), with Reserved Font Name Spoqa Han Sans Neo.  
 Source: https://spoqa.github.io/spoqa-han-sans/
 
-The full SIL Open Font License text is included in `UsageMonitorWpf/Fonts/OFL-LICENSE.txt` and copied with the Windows app build output.
+The full SIL Open Font License text is included in `AIUsage.Presentation/Fonts/OFL-LICENSE.txt` and copied with the Windows app build output.
 
 ## Microsoft .NET / WPF
 

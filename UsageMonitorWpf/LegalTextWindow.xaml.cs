@@ -1,5 +1,7 @@
+using UsageMonitorWpf.Shell;
+using AIUsage.Presentation;
 using System.Windows;
-using UsageMonitorWpf.Core;
+using AIUsage.Core;
 
 namespace UsageMonitorWpf;
 

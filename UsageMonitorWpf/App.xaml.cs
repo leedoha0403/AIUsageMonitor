@@ -5,8 +5,13 @@ public partial class App : System.Windows.Application
     // Launched by the Windows sign-in entry: start quietly (tray/chips) instead of opening the dashboard.
     public static bool StartedAtSignIn { get; private set; }
 
+    // Started by a Host that is handing a widget over: stay quiet until the hand-over arrives, and take the
+    // Host's state (this process has no data of its own yet worth keeping).
+    public const string AdoptArgument = "--adopt";
+    public static bool LaunchedForAdopt { get; private set; }
+
     // Fixed GUID-based names so a second launch reliably finds the first instance's mutex/event.
-    private const string MutexName = "Local\\UsageMonitorWpf-SingleInstance-9F1E7B2D-6C3A-4E4A-9E1D-2E9B6D6C1A11";
+    private const string MutexName = AIUsage.Core.AppIdentity.StandaloneMutexName;
     private const string ShowEventName = "Local\\UsageMonitorWpf-ShowDashboard-9F1E7B2D-6C3A-4E4A-9E1D-2E9B6D6C1A11";
 
     private System.Threading.Mutex? _singleInstanceMutex;
@@ -31,18 +36,19 @@ public partial class App : System.Windows.Application
         };
 
         // Temp copy launched by SelfUpdater: swap the exe and restart it, without touching the single-instance mutex.
-        if (e.Args.Length == 4 && e.Args[0] == Core.SelfUpdater.ApplyArgument)
+        if (e.Args.Length == 4 && e.Args[0] == Shell.SelfUpdater.ApplyArgument)
         {
-            Core.SelfUpdater.RunHelper(e.Args);
+            Shell.SelfUpdater.RunHelper(e.Args);
             Shutdown();
             return;
         }
-        Core.SelfUpdater.CleanupBackup();
+        Shell.SelfUpdater.CleanupBackup();
 
         try
         {
             base.OnStartup(e);
 
+            LaunchedForAdopt = e.Args.Contains(AdoptArgument, System.StringComparer.OrdinalIgnoreCase);
             _singleInstanceMutex = new System.Threading.Mutex(true, MutexName, out var createdNew);
             _ownsMutex = createdNew;
             if (!createdNew)
@@ -50,8 +56,12 @@ public partial class App : System.Windows.Application
                 Log("duplicate instance detected; asking the running instance to show itself");
                 try
                 {
-                    using var existingShowEvent = System.Threading.EventWaitHandle.OpenExisting(ShowEventName);
-                    existingShowEvent.Set();
+                    // A Host start-up race must not pop the running app's dashboard open.
+                    if (!LaunchedForAdopt)
+                    {
+                        using var existingShowEvent = System.Threading.EventWaitHandle.OpenExisting(ShowEventName);
+                        existingShowEvent.Set();
+                    }
                 }
                 catch (System.Exception ex)
                 {
@@ -64,7 +74,8 @@ public partial class App : System.Windows.Application
             _showEvent = new System.Threading.EventWaitHandle(false, System.Threading.EventResetMode.AutoReset, ShowEventName);
             StartShowRequestListener();
 
-            StartedAtSignIn = e.Args.Contains(Core.StartupService.StartupArgument, System.StringComparer.OrdinalIgnoreCase);
+            StartedAtSignIn = e.Args.Contains(Shell.StartupService.StartupArgument, System.StringComparer.OrdinalIgnoreCase) || LaunchedForAdopt;
+            Shell.InstallLocation.Register();
             Log(StartedAtSignIn ? "startup (sign-in)" : "startup");
             ShutdownMode = System.Windows.ShutdownMode.OnMainWindowClose;
             var window = new MainWindow();
@@ -116,5 +127,5 @@ public partial class App : System.Windows.Application
         base.OnExit(e);
     }
 
-    private static void Log(string message) => Core.AppLog.Write(message);
+    private static void Log(string message) => AIUsage.Core.AppLog.Write(message);
 }

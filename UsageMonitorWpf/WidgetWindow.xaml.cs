@@ -1,11 +1,14 @@
+using UsageMonitorWpf.ViewModels;
 using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
-using UsageMonitorWpf.Core;
-using UsageMonitorWpf.ViewModels;
+using AIUsage.Core;
+using AIUsage.Presentation.Handoff;
+using UsageMonitorWpf.Shell;
+using AIUsage.Presentation.ViewModels;
 using Forms = System.Windows.Forms;
 
 namespace UsageMonitorWpf;
@@ -33,6 +36,9 @@ public partial class WidgetWindow : Window
     private readonly Func<bool> _isChipsShown;
     private readonly MainViewModel _viewModel;
     private readonly HandleWindow _handle = new();
+    private AppHandoffService? _handoff;
+    private bool _hoveringHost;
+    private DateTime _lastHoverSent;
     private readonly DispatcherTimer _hideTimer = new() { Interval = TimeSpan.FromMilliseconds(500) };
     private DockEdge _edge;
     private Rect _dockArea = Rect.Empty;
@@ -96,6 +102,39 @@ public partial class WidgetWindow : Window
     {
         _closingForExit = true;
         Close();
+    }
+
+    // Lets the widget follow a ModuleDock Host: it reports when it is dragged over it and hands ownership over on drop.
+    public void AttachHandoff(AppHandoffService handoff) => _handoff = handoff;
+
+    // Shows the widget where a Host dropped it (virtual-screen physical pixels).
+    public void ShowAtScreenBounds(double x, double y, double width, double height, double dpi)
+    {
+        StopAnimation();
+        _hideTimer.Stop();
+        var scale = VisualTreeHelper.GetDpi(this);
+        _edge = DockEdge.None;
+        _folded = false;
+        UpdateFoldButton();
+        if (!IsVisible) Show();
+        UpdateLayout();
+        var left = x / scale.DpiScaleX;
+        var top = y / scale.DpiScaleY;
+        if (IsOnScreen(left, top))
+        {
+            Left = left;
+            Top = top;
+        }
+        else
+        {
+            var area = WorkArea();
+            Left = area.Right - ActualWidth - 22;
+            Top = area.Bottom - ActualHeight - 60;
+        }
+        _revealed = true;
+        _handle.Hide();
+        Activate();
+        SavePlacement();
     }
 
     // Shows the widget at its saved spot, re-aligned to its docked edge; a folded widget shows only its handle.
@@ -234,6 +273,7 @@ public partial class WidgetWindow : Window
         Left = left;
         Top = top;
         _dockArea = area;
+        UpdateDockHover();
         if (edge != _edge)
         {
             _edge = edge;
@@ -242,7 +282,7 @@ public partial class WidgetWindow : Window
         }
     }
 
-    private void Widget_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    private async void Widget_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
         if (!_dragging) return;
         // The last move before release is not always delivered; apply the final cursor position (and snap) here.
@@ -250,9 +290,52 @@ public partial class WidgetWindow : Window
         _dragging = false;
         ((UIElement)sender).ReleaseMouseCapture();
         if (!_moved) return;
+        // Dropped onto a ModuleDock Host: hand ownership over. If the Host declines, this stays a normal drop.
+        if (await TryDockIntoHostAsync()) return;
         if (_folded) _revealed = true;
         SavePlacement();
         if (_folded && !CursorInside()) _hideTimer.Start();
+    }
+
+    // ---- Hand-over to a Host
+
+    private bool CursorOverHost(out double x, out double y)
+    {
+        x = y = 0;
+        if (_handoff is not { HostConnected: true }) return false;
+        GetCursorPos(out var p);
+        x = p.X;
+        y = p.Y;
+        return HostWindowLocator.TryGetRect(_handoff.HostPid, out var l, out var t, out var r, out var b) && x >= l && x < r && y >= t && y < b;
+    }
+
+    // Tells the Host when the drag enters/leaves it (and refreshes while inside), so it can show where it would land.
+    private void UpdateDockHover()
+    {
+        if (_handoff is not { HostConnected: true }) return;
+        var over = CursorOverHost(out var x, out var y);
+        var now = DateTime.UtcNow;
+        if (over == _hoveringHost && !(over && now - _lastHoverSent > TimeSpan.FromMilliseconds(80))) return;
+        _hoveringHost = over;
+        _lastHoverSent = now;
+        _ = _handoff.SendDockHoverAsync(x, y, over);
+    }
+
+    private async Task<bool> TryDockIntoHostAsync()
+    {
+        if (_handoff == null) return false;
+        var over = CursorOverHost(out var x, out var y);
+        if (_hoveringHost)
+        {
+            _hoveringHost = false;
+            if (!over) _ = _handoff.SendDockHoverAsync(x, y, over: false);
+        }
+        if (!over) return false;
+        if (!await _handoff.RequestDockAsync(x, y)) return false;
+        // The Host owns the widget now: close this one and stop collecting by exiting.
+        HideWidget();
+        _exitApp();
+        return true;
     }
 
     // ---- Folding

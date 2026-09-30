@@ -1,7 +1,8 @@
 <Window x:Class="UsageMonitorWpf.WidgetWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        xmlns:conv="clr-namespace:UsageMonitorWpf.Converters"
+        xmlns:conv="clr-namespace:AIUsage.Presentation.Converters;assembly=AIUsage.Presentation"
+        xmlns:views="clr-namespace:AIUsage.Presentation.Views;assembly=AIUsage.Presentation"
         Title="Usage Widget"
         Width="330"
         SizeToContent="Height"
@@ -74,71 +75,7 @@
                 </StackPanel>
             </Grid>
 
-            <ItemsControl ItemsSource="{Binding MiniProviders}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border CornerRadius="8"
-                                Background="{DynamicResource CanvasBrush}"
-                                Padding="12"
-                                Margin="0,0,0,9">
-                            <StackPanel>
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding PrimaryMark}" Foreground="{DynamicResource AccentBrush}" Margin="0,0,4,0" />
-                                            <TextBlock Text="{Binding Title}" FontWeight="Bold" />
-                                        </StackPanel>
-                                        <!-- Time until the primary window (5H, or the Copilot month) resets, shown in every widget mode. -->
-                                        <TextBlock Text="{Binding CountdownLine}" Foreground="{DynamicResource MutedBrush}" FontSize="12" Margin="0,2,0,0"
-                                                   Visibility="{Binding HasUsage, Converter={StaticResource BoolToVisibility}}" />
-                                        <TextBlock Text="{Binding RefreshStatusText}" Foreground="{DynamicResource AccentBrush}" FontSize="11" Margin="0,2,0,0"
-                                                   Visibility="{Binding HasRefreshSchedule, Converter={StaticResource BoolToVisibility}}" />
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding RemainingLine}"
-                                                   FontSize="20"
-                                                   FontWeight="Bold"
-                                                   Foreground="{Binding AccentBrush}"
-                                                   Visibility="{Binding DataContext.ShowRemaining, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}" />
-                                        <TextBlock Text="{Binding UsedLine}"
-                                                   FontSize="20"
-                                                   FontWeight="Bold"
-                                                   Foreground="{Binding AccentBrush}"
-                                                   Visibility="{Binding DataContext.ShowRemaining, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
-                                    </StackPanel>
-                                </Grid>
-                                <TextBlock Text="{Binding Message}" Foreground="{DynamicResource MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"
-                                           Visibility="{Binding IsSignedOut, Converter={StaticResource BoolToVisibility}}" />
-                                <StackPanel Margin="0,8,0,0" Visibility="{Binding IsSignedOut, Converter={StaticResource BoolToVisibility}}">
-                                    <TextBlock Text="{Binding LoginHint}" Foreground="{DynamicResource MutedBrush}" FontSize="11" TextWrapping="Wrap" />
-                                    <Button Content="{Binding LoginButtonText}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" Margin="0,6,0,0" Padding="12,5"
-                                            IsEnabled="{Binding IsLoginPending, Converter={StaticResource InverseBool}}"
-                                            Command="{Binding DataContext.LoginCommand, RelativeSource={RelativeSource AncestorType=Window}}" CommandParameter="{Binding}" />
-                                </StackPanel>
-                                <ProgressBar Value="{Binding PrimaryPercent, Mode=OneWay}" Maximum="100" Foreground="{Binding AccentBrush}" Margin="0,10,0,0"
-                                             Visibility="{Binding DataContext.IsCompact, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
-                                <StackPanel Margin="0,8,0,0"
-                                            Visibility="{Binding DataContext.IsDetailed, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}">
-                                    <!-- Weekly line; without a 5H window the long window is already the main value. -->
-                                    <StackPanel Visibility="{Binding HasSessionWindow, Converter={StaticResource BoolToVisibility}}">
-                                        <TextBlock Text="{Binding WeeklyRemainingLine}" FontSize="12"
-                                                   Visibility="{Binding DataContext.ShowRemaining, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}}" />
-                                        <TextBlock Text="{Binding WeeklyUsedLine}" FontSize="12"
-                                                   Visibility="{Binding DataContext.ShowRemaining, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
-                                        <ProgressBar Value="{Binding WeeklyUsagePercent, Mode=OneWay}" Maximum="100" Height="4" Margin="0,4,0,4" />
-                                    </StackPanel>
-                                    <TextBlock Text="{Binding SourceLine}" Foreground="{DynamicResource MutedBrush}" FontSize="11" />
-                                    <TextBlock Text="{Binding ForecastText}" Foreground="{DynamicResource MutedBrush}" FontSize="11" TextWrapping="Wrap" />
-                                </StackPanel>
-                            </StackPanel>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
+            <views:UsageSummaryView DisplayMode="Natural" />
         </StackPanel>
     </Border>
 </Window>

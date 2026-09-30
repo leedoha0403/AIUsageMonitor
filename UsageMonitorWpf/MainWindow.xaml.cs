@@ -1,10 +1,15 @@
+using UsageMonitorWpf.ViewModels;
+using UsageMonitorWpf.Shell;
+using AIUsage.Presentation;
 using System.Windows;
 using System.Windows.Input;
 using System.ComponentModel;
-using UsageMonitorWpf.Controls;
-using UsageMonitorWpf.Core;
-using UsageMonitorWpf.Storage;
-using UsageMonitorWpf.ViewModels;
+using AIUsage.Presentation.Controls;
+using AIUsage.Core;
+using AIUsage.Core.Handoff;
+using AIUsage.Presentation.Handoff;
+using AIUsage.Core.Storage;
+using AIUsage.Presentation.ViewModels;
 using Forms = System.Windows.Forms;
 
 namespace UsageMonitorWpf;
@@ -15,16 +20,24 @@ public partial class MainWindow : Window
     private readonly MainViewModel _viewModel;
     private readonly WidgetWindow _widgetWindow;
     private readonly ChipsWindow _chipsWindow;
+    private readonly AppHandoffService _handoff;
 
     public MainWindow()
     {
         InitializeComponent();
-        _viewModel = new MainViewModel(new StateStore());
+        Detail.AddTab((System.Windows.Controls.TabItem)Resources["SettingsTab"]);
+        _viewModel = new MainViewModel(new StateStore(), new WpfUiServices());
         DataContext = _viewModel;
         _widgetWindow = new WidgetWindow(_viewModel, ShowDashboard, ExitApplication,
             () => _viewModel.ShowTaskbarChips = true, IsChipsShown);
         _chipsWindow = new ChipsWindow(_viewModel, ToggleFlyout, ShowDashboard, ExitApplication,
             ShowWidget, IsWidgetShown);
+        // Ownership hand-over with a ModuleDock Host: a Host can hand a widget to this process, and this process
+        // can hand its mini widget back when it is dropped onto the Host.
+        _handoff = new AppHandoffService(HandoffPipe.DefaultName, _viewModel, new WidgetHandoffSurface(Dispatcher, _widgetWindow),
+            adoptState: App.LaunchedForAdopt, _viewModel.InternalVersion);
+        _widgetWindow.AttachHandoff(_handoff);
+        _handoff.Start();
         _viewModel.PropertyChanged += ViewModelOnPropertyChanged;
         _viewModel.NotificationRequested += ShowNotification;
 
@@ -82,6 +95,7 @@ public partial class MainWindow : Window
             _viewModel.LoginPromptRequested -= ShowLoginPrompt;
             _viewModel.ExitRequested -= ExitApplication;
             _viewModel.SaveWindowPlacement(Left, Top);
+            _ = _handoff.DisposeAsync();
             _widgetWindow.CloseForExit();
             _chipsWindow.CloseForExit();
             _notifyIcon.Visible = false;
@@ -232,20 +246,20 @@ public partial class MainWindow : Window
         _widgetWindow.ShowAtSavedPlacement();
     }
 
-    private bool IsChipsShown() => _chipsWindow.IsVisible;
-    private bool IsWidgetShown() => _widgetWindow.IsShown;
-
-    private void LegendItem_MouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+    // If the Host never completes the hand-over, fall back to a normal start instead of running invisibly.
+    private void ScheduleAdoptFallback()
     {
-        _viewModel.HighlightedSeriesName = sender switch
+        var timer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+        timer.Tick += (_, _) =>
         {
-            FrameworkElement { DataContext: ChartSeries series } => series.Name,
-            FrameworkElement { DataContext: ChartArea area } => area.Name,
-            _ => null
+            timer.Stop();
+            if (!_widgetWindow.IsShown) ShowWidget();
         };
+        timer.Start();
     }
 
-    private void LegendItem_MouseLeave(object sender, System.Windows.Input.MouseEventArgs e) => _viewModel.HighlightedSeriesName = null;
+    private bool IsChipsShown() => _chipsWindow.IsVisible;
+    private bool IsWidgetShown() => _widgetWindow.IsShown;
 
     private void Header_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
@@ -277,7 +291,9 @@ public partial class MainWindow : Window
         if (_viewModel.IsMiniVersion)
         {
             Hide();
-            ShowWidget();
+            // Started for a hand-over: the widget appears where the Host drops it, not at its saved spot.
+            if (!App.LaunchedForAdopt) ShowWidget();
+            else ScheduleAdoptFallback();
         }
         else if (App.StartedAtSignIn && !_signInLaunchHandled)
         {

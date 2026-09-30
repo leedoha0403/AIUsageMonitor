@@ -16,10 +16,13 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Resource Include="Fonts\**\*.ttf" />
+    <ProjectReference Include="..\AIUsage.Core\AIUsage.Core.csproj" />
+    <ProjectReference Include="..\AIUsage.Presentation\AIUsage.Presentation.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Resource Include="Assets\AppIcon.ico" />
     <Resource Include="Assets\AppIcon.png" />
-    <None Include="Fonts\OFL-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..\THIRD-PARTY-NOTICES.md" Link="THIRD-PARTY-NOTICES.md" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

@@ -39,6 +39,22 @@ PowerShell MVP도 남겨두었습니다.
 powershell -NoProfile -ExecutionPolicy Bypass -File .\UsageMonitor.ps1
 ```
 
+## 프로젝트 구조
+
+| 프로젝트 | 역할 |
+|---|---|
+| `AIUsage.Core` | 수집·계산·저장 로직(Provider, 새로고침 스케줄러, 상태/히스토리 저장). WPF에 의존하지 않습니다. |
+| `AIUsage.Presentation` | ViewModel과 재사용 가능한 뷰(요약 3모드, 상세, 기능 설정), 공용 스타일·폰트. |
+| `UsageMonitorWpf` | 독립 실행 앱 셸(`AIUsageMonitor.exe`): 트레이, 칩, 미니 위젯 도킹, 자동 업데이트, 테마·시작프로그램. |
+| `AIUsage.Widget` | ModuleDock Host용 어댑터(`IComposableWidget`). 같은 기능을 Host의 자식 위젯으로 제공합니다. |
+| `tests/AIUsage.Tests` | 계약 준수·상태 저장·동시 실행 정책·위젯 생명주기 테스트. |
+
+`AIUsage.Widget`과 테스트는 형제 폴더의 ModuleDock 저장소(`..\ModuleDock`)를 참조하므로 그 저장소가 있어야 빌드됩니다. 앱 빌드와 릴리스(`UsageMonitorWpf.csproj`)는 ModuleDock 없이 동작합니다. 설계와 Host 통합 방법은 `docs/WIDGET_COMPAT_DESIGN.md`를 참고하세요.
+
+```powershell
+dotnet test .	ests\AIUsage.Tests
+```
+
 ## mac 호환 별도 프로젝트
 
 `UsageMonitorMac`은 기존 WPF 앱과 분리된 `net8.0` 크로스플랫폼 프리뷰입니다. 아직 mac 네이티브 UI는 붙이지 않았고, Claude/Codex 수집, macOS 로그인 파일 탐색, state/history 저장, 예약 갱신 dry-run처럼 UI 아래에서 재사용할 핵심 레이어를 먼저 검증합니다.
@@ -70,12 +86,12 @@ Dashboard       Overview · History · Accounts · Snapshot · Diagnostics · Se
 - 로그인 유도: 로그인이 안 된 계정에는 [로그인] 버튼이 표시되고, 누르면 PowerShell 창에서 `claude auth login` / `codex login`이 실행됩니다. CLI가 없으면 확인을 받은 뒤 설치하고 이어서 로그인 창을 엽니다. 로그인 파일이 생기면 자동으로 감지해 바로 수집합니다. 실행 중 한 번 알림으로 안내하며, 알림을 클릭하면 위젯만 열립니다(외부 프로세스는 버튼을 직접 눌렀을 때만 실행).
 - 테스트용 데이터 폴더: 환경변수 `USAGE_MONITOR_DATA_DIR`를 지정하면 실제 데이터와 분리해 실행할 수 있습니다.
 - 계정 관리: 왼쪽 목록에서 계정을 고르면 오른쪽에서 바로 편집합니다(이름, 설정 폴더 찾아보기, 모니터링 켜기/끄기, 기본 계정 지정, 로그인, 삭제). 계정마다 **표시 위치**(미니: 위젯·칩 / 대시보드)를 따로 켜고 끌 수 있습니다. 숨겨도 로그인은 유지되고 사용량 수집도 계속되며, 알림은 한 곳이라도 표시 중인 계정에만 보냅니다. 변경 사항은 즉시 저장되며, 개요 카드의 "계정 관리 ›"와 상세의 "개요에서 보기"로 서로 오갈 수 있습니다.
-- 폰트: Spoqa Han Sans Neo를 내장했습니다(SIL OFL 1.1, `UsageMonitorWpf/Fonts`). subset Regular 파일의 메타데이터가 Bold로 표시되어 있어 Regular와 Medium/Bold를 별도 패밀리로 나눠 사용합니다.
+- 폰트: Spoqa Han Sans Neo를 내장했습니다(SIL OFL 1.1, `AIUsage.Presentation/Fonts`). subset Regular 파일의 메타데이터가 Bold로 표시되어 있어 Regular와 Medium/Bold를 별도 패밀리로 나눠 사용합니다.
 - 다크 테마: 메뉴, 툴팁, 슬라이더, 체크박스, 스크롤바, 트레이 메뉴, 창 제목 표시줄까지 테마를 따릅니다.
 - Windows 시작 시 자동 실행: 설정 탭 맨 위 또는 트레이 메뉴에서 켭니다. 현재 사용자 시작 프로그램(`HKCU\...\Run`, 관리자 권한 불필요)에 `AIUsageMonitor.exe --startup`으로 등록합니다. 로그인 시에는 대시보드를 띄우지 않고 트레이와 칩(미니 모드면 위젯)으로 조용히 시작합니다. 실행 파일 위치가 바뀌면 다음 실행 때 등록 경로를 자동으로 갱신하며, 작업 관리자에서 끈 상태도 그대로 반영됩니다.
 - 아이콘: exe, 창 제목 표시줄, 트레이, 알림, 대시보드 및 위젯 헤더에 같은 앱 아이콘을 씁니다. `tools/make-icons.ps1 -Source <원본 이미지>`로 `UsageMonitorWpf/Assets/AppIcon.ico/.png`를 다시 만들 수 있습니다. 40px 이상은 원본 아트워크를 사용하고, 32px 이하(트레이 등)는 선명하도록 같은 디자인을 벡터로 다시 그립니다.
 - 한국어/English: UI, 트레이 메뉴, 상태 메시지, 진단, 알림 전체를 번역했으며 언어를 바꾸면 즉시 반영됩니다(`Core/Loc.cs`).
-- 업데이트 확인: 실행 10초 뒤와 설정 탭의 "업데이트 확인" 버튼에서 GitHub Releases의 최신 태그를 조회해 현재 버전과 비교합니다. 새 버전이 있으면 알림과 설정 탭에 표시하고, [다운로드]를 누르면 릴리스의 `AIUsageMonitor.exe`를 받아 SHA256SUMS(해당 항목 필수)로 검증한 뒤 앱을 종료하고 exe를 교체해 자동으로 다시 시작합니다(`Core/SelfUpdater.cs`). 이전 exe는 `.bak`으로 남았다가 다음 실행 때 지워지며, 교체에 실패하면 원래 exe로 되돌립니다. 설치 폴더에 쓰기 권한이 없으면 예전처럼 zip을 `다운로드` 폴더에 받아 직접 설치합니다(`Core/UpdateChecker.cs`).
+- 업데이트 확인: 실행 10초 뒤와 설정 탭의 "업데이트 확인" 버튼에서 GitHub Releases의 최신 태그를 조회해 현재 버전과 비교합니다. 새 버전이 있으면 알림과 설정 탭에 표시하고, [다운로드]를 누르면 릴리스의 `AIUsageMonitor.exe`를 받아 SHA256SUMS(해당 항목 필수)로 검증한 뒤 앱을 종료하고 exe를 교체해 자동으로 다시 시작합니다(`UsageMonitorWpf/Shell/SelfUpdater.cs`). 이전 exe는 `.bak`으로 남았다가 다음 실행 때 지워지며, 교체에 실패하면 원래 exe로 되돌립니다. 설치 폴더에 쓰기 권한이 없으면 예전처럼 zip을 `다운로드` 폴더에 받아 직접 설치합니다(`UsageMonitorWpf/Shell/UpdateChecker.cs`).
 
 ## 기능
 
@@ -106,7 +122,7 @@ Dashboard       Overview · History · Accounts · Snapshot · Diagnostics · Se
 - 안전 조건: 예약 시각이 되어도 사용량을 다시 조회해, 현재 주기가 아직 남아 있으면 실행하지 않고 갱신 가능 시각으로 옮깁니다. 같은 계정과 같은 예약 시각으로는 한 번만 실행합니다.
 - 실패하면 원인을 CLI 없음 / 로그인 만료 / 프로세스 실행 실패 / 응답 없음 / 네트워크 오류 / 예약 취소 중 하나로 구분합니다. 자동 재시도는 기본 1분 간격, 최대 3회이며, CLI 없음과 로그인 만료는 재시도하지 않습니다.
 - PC가 절전 중이라 예약 시간을 놓치면 PC가 깨어난 즉시 실행(기본) / 다음 갱신까지 대기 / 실행하지 않음 중 하나를 따릅니다. 깨어난 뒤에도 갱신 가능 여부를 다시 확인합니다. 앱이 실행 중이어야 동작합니다.
-- 실행 프로필(`Refresh/RefreshRunner.cs`)은 일반 작업과 공유하지 않는 전용 러너입니다. 앱 데이터 폴더의 빈 `refresh-workspace`에서 실행하고, 요청 문구는 stdin으로 전달합니다.
+- 실행 프로필(`AIUsage.Core/Refresh/RefreshRunner.cs`)은 일반 작업과 공유하지 않는 전용 러너입니다. 앱 데이터 폴더의 빈 `refresh-workspace`에서 실행하고, 요청 문구는 stdin으로 전달합니다.
   - Claude: `claude -p --safe-mode --strict-mcp-config --tools "" --disable-slash-commands --no-session-persistence --effort low --output-format json --model haiku`
   - Codex: `codex exec --ephemeral --ignore-user-config --skip-git-repo-check --sandbox read-only -C <빈 폴더> -c model_reasoning_effort=low --json -`
 - 서비스별 설정: 최소 비용 또는 사용자 지정 모델, 기본 요청(`hi`) 또는 사용자 지정 요청(40자 이하 평문)을 고를 수 있습니다. 새 CLI는 `IRefreshAdapter`를 구현해 추가합니다.

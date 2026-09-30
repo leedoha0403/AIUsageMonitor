@@ -1,0 +1,144 @@
+<UserControl x:Class="AIUsage.Presentation.Views.UsageSummaryView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:conv="clr-namespace:AIUsage.Presentation.Converters"
+             xmlns:views="clr-namespace:AIUsage.Presentation.Views"
+             FontFamily="{DynamicResource AppFont}"
+             TextElement.Foreground="{DynamicResource InkBrush}">
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+            <ResourceDictionary Source="pack://application:,,,/AIUsage.Presentation;component/Styles.xaml" />
+        </ResourceDictionary.MergedDictionaries>
+        <conv:BoolToVisibilityConverter x:Key="BoolToVisibility" />
+        <conv:InverseBoolConverter x:Key="InverseBool" />
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <StackPanel>
+    <Grid>
+        <!-- Natural: the original mini-widget content, honoring the shell density hints (IsCompact/IsDetailed). -->
+        <ItemsControl x:Name="NaturalPanel" ItemsSource="{Binding MiniProviders}">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border CornerRadius="8"
+                            Background="{DynamicResource CanvasBrush}"
+                            Padding="12"
+                            Margin="0,0,0,9">
+                        <StackPanel>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding PrimaryMark}" Foreground="{DynamicResource AccentBrush}" Margin="0,0,4,0" />
+                                        <TextBlock Text="{Binding Title}" FontWeight="Bold" />
+                                    </StackPanel>
+                                    <!-- Time until the primary window (5H, or the Copilot month) resets, shown in every mode. -->
+                                    <TextBlock Text="{Binding CountdownLine}" Foreground="{DynamicResource MutedBrush}" FontSize="12" Margin="0,2,0,0"
+                                               Visibility="{Binding HasUsage, Converter={StaticResource BoolToVisibility}}" />
+                                    <TextBlock Text="{Binding RefreshStatusText}" Foreground="{DynamicResource AccentBrush}" FontSize="11" Margin="0,2,0,0"
+                                               Visibility="{Binding HasRefreshSchedule, Converter={StaticResource BoolToVisibility}}" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding RemainingLine}"
+                                               FontSize="20"
+                                               FontWeight="Bold"
+                                               Foreground="{Binding AccentBrush}"
+                                               Visibility="{Binding DataContext.ShowRemaining, RelativeSource={RelativeSource AncestorType=views:UsageSummaryView}, Converter={StaticResource BoolToVisibility}}" />
+                                    <TextBlock Text="{Binding UsedLine}"
+                                               FontSize="20"
+                                               FontWeight="Bold"
+                                               Foreground="{Binding AccentBrush}"
+                                               Visibility="{Binding DataContext.ShowRemaining, RelativeSource={RelativeSource AncestorType=views:UsageSummaryView}, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
+                                </StackPanel>
+                            </Grid>
+                            <TextBlock Text="{Binding Message}" Foreground="{DynamicResource MutedBrush}" FontSize="11" TextWrapping="Wrap" Margin="0,6,0,0"
+                                       Visibility="{Binding IsSignedOut, Converter={StaticResource BoolToVisibility}}" />
+                            <StackPanel Margin="0,8,0,0" Visibility="{Binding IsSignedOut, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Text="{Binding LoginHint}" Foreground="{DynamicResource MutedBrush}" FontSize="11" TextWrapping="Wrap" />
+                                <Button Content="{Binding LoginButtonText}" Style="{StaticResource PrimaryButton}" HorizontalAlignment="Left" Margin="0,6,0,0" Padding="12,5"
+                                        IsEnabled="{Binding IsLoginPending, Converter={StaticResource InverseBool}}"
+                                        Command="{Binding DataContext.LoginCommand, RelativeSource={RelativeSource AncestorType=views:UsageSummaryView}}" CommandParameter="{Binding}" />
+                            </StackPanel>
+                            <ProgressBar Value="{Binding PrimaryPercent, Mode=OneWay}" Maximum="100" Foreground="{Binding AccentBrush}" Margin="0,10,0,0"
+                                         Visibility="{Binding DataContext.IsCompact, RelativeSource={RelativeSource AncestorType=views:UsageSummaryView}, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
+                            <StackPanel Margin="0,8,0,0"
+                                        Visibility="{Binding DataContext.IsDetailed, RelativeSource={RelativeSource AncestorType=views:UsageSummaryView}, Converter={StaticResource BoolToVisibility}}">
+                                <!-- Weekly line; without a 5H window the long window is already the main value. -->
+                                <StackPanel Visibility="{Binding HasSessionWindow, Converter={StaticResource BoolToVisibility}}">
+                                    <TextBlock Text="{Binding WeeklyRemainingLine}" FontSize="12"
+                                               Visibility="{Binding DataContext.ShowRemaining, RelativeSource={RelativeSource AncestorType=views:UsageSummaryView}, Converter={StaticResource BoolToVisibility}}" />
+                                    <TextBlock Text="{Binding WeeklyUsedLine}" FontSize="12"
+                                               Visibility="{Binding DataContext.ShowRemaining, RelativeSource={RelativeSource AncestorType=views:UsageSummaryView}, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
+                                    <ProgressBar Value="{Binding WeeklyUsagePercent, Mode=OneWay}" Maximum="100" Height="4" Margin="0,4,0,4" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding SourceLine}" Foreground="{DynamicResource MutedBrush}" FontSize="11" />
+                                <TextBlock Text="{Binding ForecastText}" Foreground="{DynamicResource MutedBrush}" FontSize="11" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- Compact: name, primary value and countdown per visible account; no bars. -->
+        <ItemsControl x:Name="CompactPanel" ItemsSource="{Binding MiniProviders}" Visibility="Collapsed">
+            <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                    <Border CornerRadius="8" Background="{DynamicResource CanvasBrush}" Padding="10,7" Margin="0,0,0,6">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <StackPanel Orientation="Horizontal">
+                                    <TextBlock Text="{Binding PrimaryMark}" Foreground="{DynamicResource AccentBrush}" Margin="0,0,4,0" />
+                                    <TextBlock Text="{Binding Title}" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding CountdownLine}" Foreground="{DynamicResource MutedBrush}" FontSize="11" Margin="0,1,0,0" TextTrimming="CharacterEllipsis"
+                                           Visibility="{Binding HasUsage, Converter={StaticResource BoolToVisibility}}" />
+                            </StackPanel>
+                            <Grid Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0">
+                                <TextBlock Text="{Binding RemainingLine}" FontSize="15" FontWeight="Bold" Foreground="{Binding AccentBrush}"
+                                           Visibility="{Binding DataContext.ShowRemaining, RelativeSource={RelativeSource AncestorType=views:UsageSummaryView}, Converter={StaticResource BoolToVisibility}}" />
+                                <TextBlock Text="{Binding UsedLine}" FontSize="15" FontWeight="Bold" Foreground="{Binding AccentBrush}"
+                                           Visibility="{Binding DataContext.ShowRemaining, RelativeSource={RelativeSource AncestorType=views:UsageSummaryView}, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
+                            </Grid>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ItemsControl.ItemTemplate>
+        </ItemsControl>
+
+        <!-- Collapsed: recognizable icon plus one critical value (the primary account). -->
+        <Border x:Name="CollapsedPanel" CornerRadius="8" Background="{DynamicResource CanvasBrush}" Padding="8,5" Visibility="Collapsed">
+            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                <Image Source="pack://application:,,,/AIUsage.Presentation;component/Assets/AppIcon.png" Width="20" Height="20" Margin="0,0,7,0"
+                       RenderOptions.BitmapScalingMode="HighQuality" />
+                <ContentControl Content="{Binding SummaryProvider}">
+                    <ContentControl.ContentTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <TextBlock Text="{Binding ChipRemainingText}" FontWeight="Bold" Foreground="{Binding AccentBrush}"
+                                           Visibility="{Binding DataContext.ShowRemaining, RelativeSource={RelativeSource AncestorType=views:UsageSummaryView}, Converter={StaticResource BoolToVisibility}}" />
+                                <TextBlock Text="{Binding ChipUsedText}" FontWeight="Bold" Foreground="{Binding AccentBrush}"
+                                           Visibility="{Binding DataContext.ShowRemaining, RelativeSource={RelativeSource AncestorType=views:UsageSummaryView}, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ContentControl.ContentTemplate>
+                </ContentControl>
+            </StackPanel>
+        </Border>
+    </Grid>
+
+    <!-- Shown when this instance is not the one collecting (another instance owns it, or access is not granted). -->
+    <Border x:Name="NoticeHost" Margin="0,4,0,0">
+        <TextBlock Text="{Binding CollectionNotice}" Foreground="{DynamicResource MutedBrush}" FontSize="11" TextWrapping="Wrap"
+                   Visibility="{Binding HasCollectionNotice, Converter={StaticResource BoolToVisibility}}" />
+    </Border>
+    </StackPanel>
+</UserControl>
