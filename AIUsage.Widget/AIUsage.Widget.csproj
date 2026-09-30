@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>AIUsage.Widget</RootNamespace>
+    <Version>0.9.0</Version>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AIUsage.Core\AIUsage.Core.csproj" />
+    <ProjectReference Include="..\AIUsage.Presentation\AIUsage.Presentation.csproj" />
+    <!-- Host contract. Moves to a package reference once Dora.Widget.Abstractions is published. -->
+    <ProjectReference Include="..\..\ModuleDock\src\Dora.Widget.Abstractions\Dora.Widget.Abstractions.csproj" />
+  </ItemGroup>
+
+</Project>
