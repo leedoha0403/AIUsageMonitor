@@ -145,6 +145,7 @@ Dashboard       Overview · History · Accounts · Snapshot · Diagnostics · Se
 - Copilot의 `copilot_internal/user`는 Copilot IDE 확장이 한도 표시에 쓰는 비공개 엔드포인트입니다. 공식 문서화된 API가 아니므로 GitHub가 바꾸면 동작하지 않을 수 있습니다.
 - 모델 호출이 필요한 경로(Claude Messages API rate-limit header)는 체인에 표시만 하며 자동으로 실행하지 않습니다(`UNVERIFIED`).
 - Codex 세션 로그는 `rate_limits`가 들어 있는 줄만 파싱합니다.
+- Claude 사용량 조회가 429(요청 과다)로 거절되면 로그인 만료로 처리하지 않고 `Retry-After`(없으면 5분, 최대 30분)만큼 기다렸다가 다시 조회합니다.
 
 ## 데이터 저장 위치
 
