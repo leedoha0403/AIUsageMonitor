@@ -153,11 +153,13 @@ public sealed class ProviderViewModel : ObservableObject
     // Copilot has no 5H window: its monthly quota (kept in the Weekly* fields) is the primary one.
     public bool HasSessionWindow => _state.Capabilities.SessionUsage;
     public bool IsMonthly => _state.Capabilities.LongWindow == "Monthly";
-    public int PrimaryPercent => HasSessionWindow ? SessionUsagePercent : WeeklyUsagePercent;
-    public DateTimeOffset PrimaryResetAt => HasSessionWindow ? _state.SessionResetAt : _state.WeeklyResetAt;
+    // Once the long window is used up, the 5H window no longer matters: nothing can run until the long reset.
+    private bool UsesSessionWindow => HasSessionWindow && WeeklyUsagePercent < 100;
+    public int PrimaryPercent => UsesSessionWindow ? SessionUsagePercent : WeeklyUsagePercent;
+    public DateTimeOffset PrimaryResetAt => UsesSessionWindow ? _state.SessionResetAt : _state.WeeklyResetAt;
     public string LongWindowLabel => Loc.T(IsMonthly ? "ui.monthly" : "ui.weekly");
-    public string PrimaryLabel => HasSessionWindow ? Loc.T("ui.5h") : LongWindowLabel;
-    public string PrimaryLongLabel => HasSessionWindow ? Loc.T("ui.5hour") : LongWindowLabel;
+    public string PrimaryLabel => UsesSessionWindow ? Loc.T("ui.5h") : LongWindowLabel;
+    public string PrimaryLongLabel => UsesSessionWindow ? Loc.T("ui.5hour") : LongWindowLabel;
     public string LongUsageLabel => Loc.T(IsMonthly ? "ui.monthlyUsage" : "ui.weeklyUsage");
     public string LongResetLabel => Loc.T(IsMonthly ? "ui.monthlyReset" : "ui.weeklyReset");
 
@@ -327,9 +329,9 @@ public sealed class ProviderViewModel : ObservableObject
     // Countdown is a real time span, not a state such as "renewable now".
     // Signed out means we cannot confirm the window is still active, so the countdown must not keep ticking
     // toward a possibly-stale reset time - show a static placeholder instead (see NextRenewTime's "-").
-    private bool CountdownIsTime => !IsSignedOut && (!HasSessionWindow || (WindowActive && !IsWindowPending)) && PrimaryResetAt > DateTimeOffset.Now;
+    private bool CountdownIsTime => !IsSignedOut && (!UsesSessionWindow || (WindowActive && !IsWindowPending)) && PrimaryResetAt > DateTimeOffset.Now;
     public string Countdown => IsSignedOut ? "-"
-        : !HasSessionWindow || (WindowActive && !IsWindowPending) ? Formatters.Countdown(PrimaryResetAt)
+        : !UsesSessionWindow || (WindowActive && !IsWindowPending) ? Formatters.Countdown(PrimaryResetAt)
         : IsWindowPending ? Loc.T("pv.windowStarting") : Loc.T("rf.renewableNow");
     public string WeeklyCountdown => IsSignedOut ? "-" : Formatters.Countdown(_state.WeeklyResetAt);
     public string ResetState => CountdownIsTime ? Formatters.ResetState(PrimaryResetAt) : "";
@@ -338,9 +340,9 @@ public sealed class ProviderViewModel : ObservableObject
     public string SourceLine => $"{Loc.Term("src.", Source)} / {Loc.Term("conf.", Confidence)}";
     public string SourceDisplayLine => Loc.T("pv.sourceLine", SourceLine);
     public string WeeklyResetDisplay => Loc.T(IsMonthly ? "pv.monthlyResetLine" : "pv.weeklyResetLine", WeeklyResetLine);
-    public string CountdownLine => CountdownIsTime ? Loc.T("pv.resetIn", Countdown) : Countdown;
+    public string CountdownLine => CountdownIsTime ? Loc.T("pv.resetIn", Formatters.DockCountdown(PrimaryResetAt)) : Countdown;
     public string ChipCountdown => IsSignedOut ? "-"
-        : !HasSessionWindow || (WindowActive && !IsWindowPending) ? Formatters.ShortCountdown(PrimaryResetAt)
+        : !UsesSessionWindow || (WindowActive && !IsWindowPending) ? Formatters.ShortCountdown(PrimaryResetAt)
         : IsWindowPending ? Loc.T("pv.windowStartingShort") : Loc.T("rf.renewableShort");
     public string WeeklyUsedLine => Loc.T(IsMonthly ? "pv.monthUsed" : "pv.weekUsed", WeeklyUsagePercent, WeeklyCountdown);
     public string WeeklyRemainingLine => Loc.T(IsMonthly ? "pv.monthLeft" : "pv.weekLeft", 100 - WeeklyUsagePercent, WeeklyCountdown);

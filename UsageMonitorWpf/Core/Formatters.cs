@@ -10,12 +10,20 @@ public static class Formatters
         return $"{Math.Floor(span.TotalHours):00}:{span.Minutes:00}:{span.Seconds:00}";
     }
 
-    // Compact form for chips: "4:15" or "2d 3h".
+    // Dock form: "3d 03:35" once a day or more is left (3 days, 3 hours, 35 minutes), otherwise like Countdown.
+    public static string DockCountdown(DateTimeOffset target)
+    {
+        var span = target.ToLocalTime() - DateTimeOffset.Now;
+        if (span.TotalDays >= 1) return $"{Math.Floor(span.TotalDays):0}d {span.Hours:00}:{span.Minutes:00}";
+        return Countdown(target);
+    }
+
+    // Compact form for chips: "4:15" or "3d 03:35".
     public static string ShortCountdown(DateTimeOffset target)
     {
         var span = target.ToLocalTime() - DateTimeOffset.Now;
         if (span.TotalSeconds <= 0) return Loc.T("fmt.resetPending");
-        if (span.TotalDays >= 1) return Loc.T("fmt.dayHour", Math.Floor(span.TotalDays), span.Hours);
+        if (span.TotalDays >= 1) return $"{Math.Floor(span.TotalDays):0}d {span.Hours:00}:{span.Minutes:00}";
         return $"{Math.Floor(span.TotalHours):0}:{span.Minutes:00}";
     }
 
