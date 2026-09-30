@@ -12,6 +12,7 @@ public static class RefreshError
 {
     public const string NoCli = "NoCli";
     public const string LoginExpired = "LoginExpired";
+    public const string UsageLimit = "UsageLimit";
     public const string ProcessFailed = "ProcessFailed";
     public const string NoResponse = "NoResponse";
     public const string Network = "Network";
@@ -186,8 +187,8 @@ public sealed class RefreshRunner
         return new RefreshResult
         {
             Success = ok,
-            ErrorKind = ok ? "" : Classify(output + "\n" + error),
-            Message = ok ? "OK" : FirstLine(error, output, $"Exit code {process.ExitCode}"),
+            ErrorKind = ok ? "" : Classify(ErrorSummary(output, error)),
+            Message = ok ? "OK" : FirstLine(ErrorSummary(output, error), error, output, $"Exit code {process.ExitCode}"),
             Output = output,
             DurationMs = (int)sw.ElapsedMilliseconds,
             CommandLine = commandLine
@@ -197,9 +198,19 @@ public sealed class RefreshRunner
     private static string Classify(string text)
     {
         var t = text.ToLowerInvariant();
-        if (t.Contains("login") || t.Contains("log in") || t.Contains("unauthorized") || t.Contains("401") || t.Contains("oauth") || t.Contains("expired") || t.Contains("authenticat")) return RefreshError.LoginExpired;
+        // Quota exhaustion is not a login problem; check it first (the account is signed in).
+        if (t.Contains("usage limit") || t.Contains("usage_limit") || t.Contains("rate limit") || t.Contains("quota") || t.Contains("429")) return RefreshError.UsageLimit;
+        if (t.Contains("not logged in") || t.Contains("please log in") || t.Contains("please login") || t.Contains("run codex login") || t.Contains("/login") || t.Contains("unauthorized") || t.Contains("401 ") || t.Contains("invalid api key") || t.Contains("token expired") || t.Contains("token has expired") || t.Contains("session expired")) return RefreshError.LoginExpired;
         if (t.Contains("network") || t.Contains("enotfound") || t.Contains("econn") || t.Contains("timed out") || t.Contains("timeout") || t.Contains("getaddrinfo") || t.Contains("connection")) return RefreshError.Network;
         return RefreshError.Other;
+    }
+
+    // stdout --json errors ({"type":"error"/"turn.failed","message"...}) are the real cause; stderr is mostly log noise.
+    private static string ErrorSummary(string output, string error)
+    {
+        var lines = (output ?? "").Split('\n').Select(l => l.Trim()).Where(l => l.StartsWith("{") && (l.Contains("\"turn.failed\"") || l.Contains("\"type\":\"error\"")));
+        var last = lines.LastOrDefault();
+        return last ?? (error ?? "");
     }
 
     private static string FirstLine(params string[] candidates)

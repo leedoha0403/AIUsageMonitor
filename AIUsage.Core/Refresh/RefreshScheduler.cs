@@ -244,7 +244,7 @@ public sealed class RefreshScheduler
             {
                 r.LastError = result.Message;
                 r.LastErrorKind = result.ErrorKind;
-                var retryable = result.ErrorKind is not (RefreshError.NoCli or RefreshError.LoginExpired or RefreshError.Canceled);
+                var retryable = result.ErrorKind is not (RefreshError.NoCli or RefreshError.LoginExpired or RefreshError.UsageLimit or RefreshError.Canceled);
                 var settings = _state.Settings.Refresh;
                 if (retryable && settings.RetryEnabled && r.Attempts - 1 < settings.RetryMax)
                 {

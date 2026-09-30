@@ -399,6 +399,7 @@ public static class Loc
         ["rf.repeat.Window"] = ("{0}~{1} only", "{0}~{1} 시간대만"),
         ["rf.err.NoCli"] = ("CLI not installed", "CLI 없음"),
         ["rf.err.LoginExpired"] = ("Login expired", "로그인 만료"),
+        ["rf.err.UsageLimit"] = ("Usage limit reached", "사용 한도 소진"),
         ["rf.err.ProcessFailed"] = ("Could not start the process", "프로세스 실행 실패"),
         ["rf.err.NoResponse"] = ("No response", "응답 없음"),
         ["rf.err.Network"] = ("Network error", "네트워크 오류"),
