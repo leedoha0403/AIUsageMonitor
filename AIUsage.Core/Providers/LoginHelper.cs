@@ -86,10 +86,12 @@ public static class LoginHelper
 
             var isCmd = exe.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase);
             if (exe.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase)) return false;
+            // `claude auth status` does not always refresh the token; a minimal prompt run does.
             var info = new ProcessStartInfo(isCmd ? "cmd.exe" : exe)
             {
                 UseShellExecute = false,
                 CreateNoWindow = true,
+                RedirectStandardInput = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
                 WorkingDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
@@ -99,13 +101,23 @@ public static class LoginHelper
                 info.ArgumentList.Add("/c");
                 info.ArgumentList.Add(exe);
             }
-            info.ArgumentList.Add("auth");
-            info.ArgumentList.Add("status");
+            info.ArgumentList.Add("-p");
+            info.ArgumentList.Add(".");
+            info.ArgumentList.Add("--no-session-persistence");
             if (!string.IsNullOrWhiteSpace(configDirectory)) info.Environment["CLAUDE_CONFIG_DIR"] = Environment.ExpandEnvironmentVariables(configDirectory);
+            // Do not let a parent Claude Code session's identity leak into the refresh run.
+            info.Environment.Remove("CLAUDECODE");
+            info.Environment.Remove("CLAUDE_CODE_ENTRYPOINT");
             using var process = Process.Start(info);
             if (process == null) return false;
+            process.StandardInput.Close();
+            // Output is never read; drain it so a full pipe cannot stall the CLI.
+            process.OutputDataReceived += static (_, _) => { };
+            process.ErrorDataReceived += static (_, _) => { };
+            process.BeginOutputReadLine();
+            process.BeginErrorReadLine();
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            timeout.CancelAfter(TimeSpan.FromSeconds(20));
+            timeout.CancelAfter(TimeSpan.FromSeconds(30));
             try
             {
                 await process.WaitForExitAsync(timeout.Token);
