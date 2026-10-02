@@ -155,6 +155,9 @@ public sealed class ProviderViewModel : ObservableObject
     public bool IsMonthly => _state.Capabilities.LongWindow == "Monthly";
     // Once the long window is used up, the 5H window no longer matters: nothing can run until the long reset.
     private bool UsesSessionWindow => HasSessionWindow && WeeklyUsagePercent < 100;
+    // The separate long-window row only adds something while the 5H window is the primary one; once the long
+    // window is used up it already is the primary row.
+    public bool ShowWeeklyRow => UsesSessionWindow;
     public int PrimaryPercent => UsesSessionWindow ? SessionUsagePercent : WeeklyUsagePercent;
     public DateTimeOffset PrimaryResetAt => UsesSessionWindow ? _state.SessionResetAt : _state.WeeklyResetAt;
     public string LongWindowLabel => Loc.T(IsMonthly ? "ui.monthly" : "ui.weekly");
@@ -247,8 +250,11 @@ public sealed class ProviderViewModel : ObservableObject
 
     public AccountRefresh Refresh => _state.Refresh;
     private bool WindowActive => !IsSignedOut && HasSessionWindow && SessionWindow.IsActive(_state, _state.Refresh, DateTimeOffset.Now);
-    public string NextRenewTime => IsSignedOut ? "-" : IsWindowPending ? Loc.T("pv.windowStartingShort") : WindowActive ? ShortTime(_state.SessionResetAt) : Loc.T("rf.renewableNow");
-    public string NextRenewCountdown => WindowActive && CountdownIsTime ? Countdown : "";
+    // With the weekly limit used up no new 5H window can start, however idle the 5H window looks: the next
+    // renewal is the weekly reset.
+    private bool WeeklyBlocked => !IsSignedOut && HasSessionWindow && WeeklyUsagePercent >= 100 && _state.WeeklyResetAt > DateTimeOffset.Now;
+    public string NextRenewTime => IsSignedOut ? "-" : WeeklyBlocked ? ShortTime(_state.WeeklyResetAt) : IsWindowPending ? Loc.T("pv.windowStartingShort") : WindowActive ? ShortTime(_state.SessionResetAt) : Loc.T("rf.renewableNow");
+    public string NextRenewCountdown => WeeklyBlocked ? WeeklyCountdown : WindowActive && CountdownIsTime ? Countdown : "";
 
     public bool NotifyOnReset
     {
@@ -334,6 +340,8 @@ public sealed class ProviderViewModel : ObservableObject
         : !UsesSessionWindow || (WindowActive && !IsWindowPending) ? Formatters.Countdown(PrimaryResetAt)
         : IsWindowPending ? Loc.T("pv.windowStarting") : Loc.T("rf.renewableNow");
     public string WeeklyCountdown => IsSignedOut ? "-" : Formatters.Countdown(_state.WeeklyResetAt);
+    // Small line under the 5H countdown, so the long window's reset is visible without a second card.
+    public string WeeklyResetCountdownLine => Loc.T(IsMonthly ? "pv.monthlyResetLine" : "pv.weeklyResetLine", WeeklyCountdown);
     public string ResetState => CountdownIsTime ? Formatters.ResetState(PrimaryResetAt) : "";
     public string WeeklyResetLine => Formatters.LocalTime(_state.WeeklyResetAt);
     public string UsageState => Formatters.UsageState(PrimaryPercent);
@@ -428,7 +436,12 @@ public sealed class ProviderViewModel : ObservableObject
         private set => Set(ref _resetHistoryText, value);
     }
 
-    public System.Windows.Media.Brush AccentBrush => IsSignedOut ? Freeze(System.Windows.Media.Color.FromRgb(140, 146, 152)) : UsageState switch
+    public System.Windows.Media.Brush AccentBrush => IsSignedOut ? Freeze(System.Windows.Media.Color.FromRgb(140, 146, 152)) : AccentFor(UsageState);
+
+    // The long window's own colour, so its bar never contradicts the percentage next to it.
+    public System.Windows.Media.Brush WeeklyAccentBrush => IsSignedOut ? Freeze(System.Windows.Media.Color.FromRgb(140, 146, 152)) : AccentFor(Formatters.UsageState(WeeklyUsagePercent));
+
+    private static System.Windows.Media.Brush AccentFor(string usageState) => usageState switch
     {
         "Critical" => Freeze(System.Windows.Media.Color.FromRgb(197, 64, 73)),
         "High" => Freeze(System.Windows.Media.Color.FromRgb(211, 112, 43)),
@@ -449,6 +462,15 @@ public sealed class ProviderViewModel : ObservableObject
         {
             VelocityText = "-";
             ForecastText = TimelineText = ResetHistoryText = Loc.T("pv.noForecastMonthly");
+            return;
+        }
+        // The long window is used up: nothing can run until its reset, whatever the 5H window says.
+        if (!UsesSessionWindow)
+        {
+            var left = _state.WeeklyResetAt - DateTimeOffset.Now;
+            VelocityText = "-";
+            ForecastText = left > TimeSpan.Zero ? Loc.T("an.limitReached", Formatters.Duration(left)) : Loc.T("an.limitReachedPending");
+            TimelineText = ResetHistoryText = "-";
             return;
         }
         var window = UsageAnalytics.CurrentWindow(history, _state);
@@ -483,7 +505,7 @@ public sealed class ProviderViewModel : ObservableObject
         foreach (var name in new[]
                  {
                      nameof(Status), nameof(Message), nameof(IsSignedOut), nameof(HasUsage), nameof(UsedLine), nameof(RemainingLine),
-                     nameof(Countdown), nameof(WeeklyCountdown), nameof(ResetState), nameof(WeeklyResetLine), nameof(UsageState),
+                     nameof(Countdown), nameof(WeeklyCountdown), nameof(WeeklyResetCountdownLine), nameof(ResetState), nameof(WeeklyResetLine), nameof(UsageState),
                      nameof(SourceLine), nameof(WeeklyUsedLine), nameof(WeeklyRemainingLine), nameof(ChipUsedText), nameof(ChipRemainingText),
                      nameof(Summary), nameof(AccentBrush), nameof(SessionUsagePercent), nameof(WeeklyUsagePercent), nameof(SessionResetText),
                      nameof(WeeklyResetText), nameof(Plan), nameof(PlanLine), nameof(LastSuccessText), nameof(HealthText), nameof(HealthLabel),
@@ -493,7 +515,8 @@ public sealed class ProviderViewModel : ObservableObject
                      nameof(NextRenewTime), nameof(NextRenewCountdown), nameof(HasRefreshSchedule), nameof(CanRetryRefresh), nameof(IsRefreshRunning),
                      nameof(ScheduleButtonText), nameof(RefreshStatusText), nameof(ScheduleSummary), nameof(NotifyButtonText), nameof(NotifyOnReset),
                      nameof(PrimaryPercent), nameof(PrimaryResetAt), nameof(PrimaryLabel), nameof(PrimaryLongLabel), nameof(LongWindowLabel),
-                     nameof(LongUsageLabel), nameof(LongResetLabel), nameof(HasSessionWindow), nameof(IsMonthly), nameof(HasRenewal), nameof(IsWindowPending)
+                     nameof(LongUsageLabel), nameof(LongResetLabel), nameof(HasSessionWindow), nameof(IsMonthly), nameof(HasRenewal), nameof(IsWindowPending),
+                     nameof(ShowWeeklyRow), nameof(WeeklyAccentBrush)
                  })
         {
             OnPropertyChanged(name);
@@ -505,7 +528,7 @@ public sealed class ProviderViewModel : ObservableObject
     // changes when the state does, which already goes through RefreshDerived.
     private static readonly string[] TimeDependent =
     [
-        nameof(Countdown), nameof(WeeklyCountdown), nameof(ResetState), nameof(CountdownLine), nameof(ChipCountdown),
+        nameof(Countdown), nameof(WeeklyCountdown), nameof(WeeklyResetCountdownLine), nameof(ResetState), nameof(CountdownLine), nameof(ChipCountdown),
         nameof(WeeklyUsedLine), nameof(WeeklyRemainingLine), nameof(Summary), nameof(LastSuccessText), nameof(RefreshStatusText),
         nameof(NextRenewTime), nameof(NextRenewCountdown), nameof(IsWindowPending)
     ];

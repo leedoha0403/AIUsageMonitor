@@ -106,7 +106,15 @@ public sealed class LocalCacheCollector : IUsageCollector
         if (weeklyReset <= now && weekly > 0)
         {
             weekly = 0;
-            weeklyReset = weeklyReset.AddDays(Math.Ceiling((now - weeklyReset).TotalDays / 7) * 7);
+            // A monthly quota (Copilot) resets by calendar month, not every 7 days.
+            if (account.Capabilities.LongWindow == "Monthly")
+            {
+                while (weeklyReset <= now) weeklyReset = weeklyReset.AddMonths(1);
+            }
+            else
+            {
+                weeklyReset = weeklyReset.AddDays(Math.Ceiling((now - weeklyReset).TotalDays / 7) * 7);
+            }
             estimated = true;
         }
 

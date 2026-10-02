@@ -116,3 +116,98 @@ public class PerformanceTests
         Assert.False(result.Success);
     }
 }
+
+public class RenewalDisplayTests
+{
+    private static ProviderViewModel Codex(int weeklyPercent, DateTimeOffset weeklyReset)
+    {
+        var account = Defaults.CreateState().Providers.Values.First(p => p.ProviderId == "codex");
+        account.Status = "READY";
+        account.SessionUsagePercent = 100;
+        account.SessionResetAt = DateTimeOffset.Now.AddHours(-1);   // an idle-looking 5H window
+        account.WeeklyUsagePercent = weeklyPercent;
+        account.WeeklyResetAt = weeklyReset;
+        return new ProviderViewModel(account, 0);
+    }
+
+    [Fact]
+    public void With_the_weekly_limit_used_up_the_next_renewal_is_the_weekly_reset()
+    {
+        var vm = Codex(100, DateTimeOffset.Now.AddDays(1).AddHours(17));
+
+        Assert.NotEqual(Loc.T("rf.renewableNow"), vm.NextRenewTime);
+        Assert.Matches(@"\d\d:\d\d$", vm.NextRenewTime);
+        Assert.Contains("1", vm.NextRenewCountdown);
+        Assert.NotEmpty(vm.NextRenewCountdown);
+    }
+
+    [Fact]
+    public void With_weekly_room_left_an_idle_window_is_still_renewable_now()
+    {
+        var vm = Codex(40, DateTimeOffset.Now.AddDays(3));
+
+        Assert.Equal(Loc.T("rf.renewableNow"), vm.NextRenewTime);
+    }
+
+    [Fact]
+    public void A_weekly_limit_that_has_already_reset_does_not_block_renewal()
+    {
+        var vm = Codex(100, DateTimeOffset.Now.AddMinutes(-5));
+
+        Assert.Equal(Loc.T("rf.renewableNow"), vm.NextRenewTime);
+    }
+}
+
+public class WeeklyLimitDisplayTests
+{
+    private static ProviderViewModel Codex(int weeklyPercent)
+    {
+        var account = Defaults.CreateState().Providers.Values.First(p => p.ProviderId == "codex");
+        account.Status = "READY";
+        account.SessionUsagePercent = 20;
+        account.SessionResetAt = DateTimeOffset.Now.AddHours(2);
+        account.WeeklyUsagePercent = weeklyPercent;
+        account.WeeklyResetAt = DateTimeOffset.Now.AddDays(1).AddHours(17);
+        return new ProviderViewModel(account, 0);
+    }
+
+    [Fact]
+    public void The_weekly_row_is_hidden_once_the_weekly_window_is_the_primary_one()
+    {
+        Assert.False(Codex(100).ShowWeeklyRow);
+        Assert.True(Codex(60).ShowWeeklyRow);
+    }
+
+    [Fact]
+    public void The_weekly_bar_colour_follows_the_weekly_percentage()
+    {
+        static System.Windows.Media.Color Color(System.Windows.Media.Brush brush) => ((System.Windows.Media.SolidColorBrush)brush).Color;
+        Assert.NotEqual(Color(Codex(100).WeeklyAccentBrush), Color(Codex(10).WeeklyAccentBrush));
+        Assert.Equal(Color(Codex(100).AccentBrush), Color(Codex(100).WeeklyAccentBrush));
+    }
+
+    [Fact]
+    public void With_the_weekly_limit_used_up_the_forecast_says_the_limit_is_reached()
+    {
+        var vm = Codex(100);
+        vm.UpdateAnalytics([]);
+
+        Assert.Matches("한도 도달|Limit reached", vm.ForecastText);
+        Assert.NotEqual(Loc.T("pv.noHistory"), vm.ForecastText);
+    }
+
+    [Fact]
+    public async Task A_monthly_quota_that_reset_moves_its_estimate_by_a_month_not_a_week()
+    {
+        var account = Defaults.CreateState().Providers.Values.First(p => p.ProviderId == "copilot");
+        account.Capabilities.LongWindow = "Monthly";
+        account.WeeklyUsagePercent = 80;
+        var reset = DateTimeOffset.Now.AddDays(-2);
+        account.WeeklyResetAt = reset;
+
+        var result = await new LocalCacheCollector().CollectAsync(new CollectContext { Account = account, CollectionLevel = "Safe" }, CancellationToken.None);
+
+        Assert.Equal(0, result.WeeklyPercent);
+        Assert.Equal(reset.AddMonths(1), result.WeeklyResetAt);
+    }
+}

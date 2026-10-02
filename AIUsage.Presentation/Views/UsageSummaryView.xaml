@@ -68,12 +68,12 @@
                             <StackPanel Margin="0,8,0,0"
                                         Visibility="{Binding DataContext.IsDetailed, RelativeSource={RelativeSource AncestorType=views:UsageSummaryView}, Converter={StaticResource BoolToVisibility}}">
                                 <!-- Weekly line; without a 5H window the long window is already the main value. -->
-                                <StackPanel Visibility="{Binding HasSessionWindow, Converter={StaticResource BoolToVisibility}}">
+                                <StackPanel Visibility="{Binding ShowWeeklyRow, Converter={StaticResource BoolToVisibility}}">
                                     <TextBlock Text="{Binding WeeklyRemainingLine}" FontSize="12"
                                                Visibility="{Binding DataContext.ShowRemaining, RelativeSource={RelativeSource AncestorType=views:UsageSummaryView}, Converter={StaticResource BoolToVisibility}}" />
                                     <TextBlock Text="{Binding WeeklyUsedLine}" FontSize="12"
                                                Visibility="{Binding DataContext.ShowRemaining, RelativeSource={RelativeSource AncestorType=views:UsageSummaryView}, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}" />
-                                    <ProgressBar Value="{Binding WeeklyUsagePercent, Mode=OneWay}" Maximum="100" Height="4" Margin="0,4,0,4" />
+                                    <ProgressBar Value="{Binding WeeklyUsagePercent, Mode=OneWay}" Maximum="100" Height="4" Margin="0,4,0,4" Foreground="{Binding WeeklyAccentBrush}" />
                                 </StackPanel>
                                 <TextBlock Text="{Binding SourceLine}" Foreground="{DynamicResource MutedBrush}" FontSize="11" />
                                 <TextBlock Text="{Binding ForecastText}" Foreground="{DynamicResource MutedBrush}" FontSize="11" TextWrapping="Wrap" />

@@ -115,14 +115,14 @@
 
                                             <!-- Weekly row; without a 5H window the long window is already the primary row above. -->
                                             <Grid Margin="0,11,0,0" Visibility="{Binding DataContext.IsCompact, RelativeSource={RelativeSource AncestorType=views:UsageDetailView}, Converter={StaticResource BoolToVisibility}, ConverterParameter=invert}">
-                                                <Grid Visibility="{Binding HasSessionWindow, Converter={StaticResource BoolToVisibility}}">
+                                                <Grid Visibility="{Binding ShowWeeklyRow, Converter={StaticResource BoolToVisibility}}">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="58" />
                                                         <ColumnDefinition Width="*" />
                                                         <ColumnDefinition Width="50" />
                                                     </Grid.ColumnDefinitions>
                                                     <TextBlock Text="{Binding LongWindowLabel}" Foreground="{DynamicResource MutedBrush}" />
-                                                    <ProgressBar Grid.Column="1" Value="{Binding WeeklyUsagePercent, Mode=OneWay}" Maximum="100" />
+                                                    <ProgressBar Grid.Column="1" Value="{Binding WeeklyUsagePercent, Mode=OneWay}" Maximum="100" Foreground="{Binding WeeklyAccentBrush}" />
                                                     <TextBlock Grid.Column="2" Text="{Binding WeeklyUsagePercent, StringFormat={}{0}%}" TextAlignment="Right" FontWeight="SemiBold" />
                                                 </Grid>
                                             </Grid>
@@ -136,6 +136,8 @@
                                                     <StackPanel>
                                                         <TextBlock Text="{DynamicResource ui.nextReset}" Foreground="{DynamicResource MutedBrush}" FontSize="12" />
                                                         <TextBlock Text="{Binding Countdown}" FontSize="18" FontWeight="Bold" />
+                                                        <TextBlock Text="{Binding WeeklyResetCountdownLine}" Foreground="{DynamicResource MutedBrush}" FontSize="11" Margin="0,3,0,0"
+                                                                   Visibility="{Binding ShowWeeklyRow, Converter={StaticResource BoolToVisibility}}" />
                                                     </StackPanel>
                                                     <TextBlock Grid.Column="1" Text="{Binding ResetState}" Foreground="{DynamicResource MutedBrush}" VerticalAlignment="Center" />
                                                 </Grid>
@@ -195,14 +197,14 @@
                                                             <ProgressBar Grid.Column="1" Value="{Binding PrimaryPercent, Mode=OneWay}" Maximum="100" Foreground="{Binding AccentBrush}" />
                                                             <TextBlock Grid.Column="2" Text="{Binding PrimaryPercent, StringFormat={}{0}%}" TextAlignment="Right" FontWeight="SemiBold" />
                                                         </Grid>
-                                                        <Grid Margin="0,11,0,0" Visibility="{Binding HasSessionWindow, Converter={StaticResource BoolToVisibility}}">
+                                                        <Grid Margin="0,11,0,0" Visibility="{Binding ShowWeeklyRow, Converter={StaticResource BoolToVisibility}}">
                                                             <Grid.ColumnDefinitions>
                                                                 <ColumnDefinition Width="96" />
                                                                 <ColumnDefinition Width="*" />
                                                                 <ColumnDefinition Width="56" />
                                                             </Grid.ColumnDefinitions>
                                                             <TextBlock Text="{DynamicResource ui.weekly}" FontWeight="SemiBold" />
-                                                            <ProgressBar Grid.Column="1" Value="{Binding WeeklyUsagePercent, Mode=OneWay}" Maximum="100" />
+                                                            <ProgressBar Grid.Column="1" Value="{Binding WeeklyUsagePercent, Mode=OneWay}" Maximum="100" Foreground="{Binding WeeklyAccentBrush}" />
                                                             <TextBlock Grid.Column="2" Text="{Binding WeeklyUsagePercent, StringFormat={}{0}%}" TextAlignment="Right" FontWeight="SemiBold" />
                                                         </Grid>
 
@@ -525,9 +527,9 @@
                                                         <TextBlock Text="{Binding PrimaryLabel}" Style="{StaticResource Muted}" />
                                                         <TextBlock Text="{Binding PrimaryPercent, StringFormat={}{0}%}" FontSize="20" FontWeight="Bold" Foreground="{Binding AccentBrush}" />
                                                     </StackPanel>
-                                                    <StackPanel Grid.Column="1" Visibility="{Binding HasSessionWindow, Converter={StaticResource BoolToVisibility}}">
+                                                    <StackPanel Grid.Column="1" Visibility="{Binding ShowWeeklyRow, Converter={StaticResource BoolToVisibility}}">
                                                         <TextBlock Text="{DynamicResource ui.weekly}" Style="{StaticResource Muted}" />
-                                                        <TextBlock Text="{Binding WeeklyUsagePercent, StringFormat={}{0}%}" FontSize="20" FontWeight="Bold" />
+                                                        <TextBlock Text="{Binding WeeklyUsagePercent, StringFormat={}{0}%}" FontSize="20" FontWeight="Bold" Foreground="{Binding WeeklyAccentBrush}" />
                                                     </StackPanel>
                                                     <StackPanel Grid.Column="2">
                                                         <TextBlock Text="{DynamicResource ui.col.health}" Style="{StaticResource Muted}" />
