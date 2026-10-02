@@ -83,6 +83,10 @@ public partial class WidgetWindow : Window
             HideWidget();
         };
         ownerCheck.Start();
+        // The widget stays floating or folded until the user hides it; if anything else took it off screen, put it back.
+        var keeper = new DispatcherTimer { Interval = TimeSpan.FromSeconds(3) };
+        keeper.Tick += (_, _) => KeepAlive();
+        keeper.Start();
         MouseEnter += (_, _) => _hideTimer.Stop();
         MouseLeave += (_, _) =>
         {
@@ -112,6 +116,47 @@ public partial class WidgetWindow : Window
 
     private bool _closingForExit;
 
+    // True from the moment the widget is shown until something deliberately hides it (HideWidget).
+    private bool _shouldShow;
+
+    private void KeepAlive()
+    {
+        if (!_shouldShow || _closingForExit || _dragging || _animating || HostHoldsWidget()) return;
+
+        if (_edge != DockEdge.None && _folded)
+        {
+            if (_revealed)
+            {
+                if (!IsVisible) Show();
+                else if (Topmost) TopmostKeeper.Reassert(this);
+                return;
+            }
+            // Folded: only the handle is on screen. A widget left half-way by an interrupted slide is put away.
+            if (IsVisible) Hide();
+            if (!_handle.IsVisible) ShowHandle();
+            else _handle.ReassertTopmost();
+            return;
+        }
+
+        if (!IsVisible)
+        {
+            AIUsage.Core.AppLog.Write("widget restored: it was shown but not visible");
+            ShowAtSavedPlacement();
+            return;
+        }
+        if (!IsOnScreen(Left, Top))
+        {
+            var area = WorkArea();
+            Left = area.Right - ActualWidth - 22;
+            Top = area.Bottom - ActualHeight - 60;
+            _edge = DockEdge.None;
+            _folded = false;
+            UpdateFoldButton();
+            SavePlacement();
+        }
+        if (Topmost) TopmostKeeper.Reassert(this);
+    }
+
     // Called only when the whole app is shutting down; lets this window actually close.
     public void CloseForExit()
     {
@@ -132,6 +177,7 @@ public partial class WidgetWindow : Window
     public void ShowAtScreenBounds(double x, double y, double width, double height, double dpi)
     {
         _adoptedAt = DateTime.UtcNow;
+        _shouldShow = true;
         ShownByHost?.Invoke();
         StopAnimation();
         _hideTimer.Stop();
@@ -164,6 +210,7 @@ public partial class WidgetWindow : Window
     public void ShowAtSavedPlacement()
     {
         if (HostHoldsWidget()) return;
+        _shouldShow = true;
         var state = _viewModel.State;
         StopAnimation();
         if (!IsVisible) Show();
@@ -219,6 +266,7 @@ public partial class WidgetWindow : Window
     public void ShowAbove(Rect anchor)
     {
         if (HostHoldsWidget()) return;
+        _shouldShow = true;
         if (_edge != DockEdge.None)
         {
             ShowAtSavedPlacement();
@@ -236,6 +284,7 @@ public partial class WidgetWindow : Window
     // Hides the widget and its handle entirely (× button, chips toggle, switching to the dashboard).
     public void HideWidget()
     {
+        _shouldShow = false;
         _hideTimer.Stop();
         StopAnimation();
         _handle.Hide();

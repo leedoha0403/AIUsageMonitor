@@ -159,6 +159,9 @@ public sealed class RefreshRunner
             return new RefreshResult { ErrorKind = RefreshError.ProcessFailed, Message = ex.Message, CommandLine = commandLine };
         }
 
+        // A scheduled refresh runs unattended; it should never compete with what the user is doing.
+        try { process.PriorityClass = ProcessPriorityClass.BelowNormal; } catch (Exception ex) when (ex is InvalidOperationException or Win32Exception or NotSupportedException) { }
+
         await process.StandardInput.WriteAsync(profile.Prompt);
         process.StandardInput.Close();
         var stdout = process.StandardOutput.ReadToEndAsync(cancellationToken);

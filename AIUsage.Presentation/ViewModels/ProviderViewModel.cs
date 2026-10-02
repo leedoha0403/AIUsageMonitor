@@ -500,6 +500,23 @@ public sealed class ProviderViewModel : ObservableObject
         }
     }
 
+    // Properties whose value changes with the clock alone (they read "now", directly or through WindowActive /
+    // IsWindowPending / CountdownIsTime). The once-a-second tick raises just these; every other property only
+    // changes when the state does, which already goes through RefreshDerived.
+    private static readonly string[] TimeDependent =
+    [
+        nameof(Countdown), nameof(WeeklyCountdown), nameof(ResetState), nameof(CountdownLine), nameof(ChipCountdown),
+        nameof(WeeklyUsedLine), nameof(WeeklyRemainingLine), nameof(Summary), nameof(LastSuccessText), nameof(RefreshStatusText),
+        nameof(NextRenewTime), nameof(NextRenewCountdown), nameof(IsWindowPending)
+    ];
+
+    public static IReadOnlyList<string> TimeDependentProperties => TimeDependent;
+
+    public void RefreshTime()
+    {
+        foreach (var name in TimeDependent) OnPropertyChanged(name);
+    }
+
     public void RefreshCollectors()
     {
         Collectors.Clear();

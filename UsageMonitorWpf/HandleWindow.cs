@@ -105,6 +105,8 @@ public sealed class HandleWindow : Window
         if (!wasVisible) Pulse();
     }
 
+    public void ReassertTopmost() => Shell.TopmostKeeper.Reassert(this);
+
     // A few soft blinks right after folding so the eye finds the handle.
     private void Pulse()
     {

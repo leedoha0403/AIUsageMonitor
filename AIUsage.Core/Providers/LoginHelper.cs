@@ -70,6 +70,10 @@ public static class LoginHelper
 
     private static readonly SemaphoreSlim RefreshGate = new(1, 1);
     private static readonly Dictionary<string, DateTimeOffset> LastRefresh = new();
+    private static readonly Dictionary<string, int> RefreshFailures = new();
+
+    // 5 minutes, doubling per consecutive failed run up to 15: a signed-out account does not keep spawning the CLI.
+    private static TimeSpan RefreshInterval(int failures) => TimeSpan.FromMinutes(Math.Min(5 << Math.Min(failures, 2), 15));
 
     // Runs the CLI headlessly so it refreshes its own expired OAuth token (the app never touches the refresh token).
     // Throttled per config folder so a genuinely signed-out account does not spawn a process every refresh.
@@ -81,9 +85,23 @@ public static class LoginHelper
         await RefreshGate.WaitAsync(cancellationToken);
         try
         {
-            if (LastRefresh.TryGetValue(key, out var at) && DateTimeOffset.Now - at < TimeSpan.FromMinutes(5)) return false;
+            RefreshFailures.TryGetValue(key, out var failures);
+            if (LastRefresh.TryGetValue(key, out var at) && DateTimeOffset.Now - at < RefreshInterval(failures)) return false;
             LastRefresh[key] = DateTimeOffset.Now;
+            var ran = await RunRefreshAsync(exe, configDirectory, cancellationToken);
+            RefreshFailures[key] = ran ? 0 : failures + 1;
+            return ran;
+        }
+        finally
+        {
+            RefreshGate.Release();
+        }
+    }
 
+    private static async Task<bool> RunRefreshAsync(string exe, string? configDirectory, CancellationToken cancellationToken)
+    {
+        try
+        {
             var isCmd = exe.EndsWith(".cmd", StringComparison.OrdinalIgnoreCase);
             if (exe.EndsWith(".ps1", StringComparison.OrdinalIgnoreCase)) return false;
             // `claude auth status` does not always refresh the token; a minimal prompt run does.
@@ -110,6 +128,8 @@ public static class LoginHelper
             info.Environment.Remove("CLAUDE_CODE_ENTRYPOINT");
             using var process = Process.Start(info);
             if (process == null) return false;
+            // A background token refresh should never compete with what the user is doing.
+            try { process.PriorityClass = ProcessPriorityClass.BelowNormal; } catch (Exception ex) when (ex is InvalidOperationException or System.ComponentModel.Win32Exception or NotSupportedException) { }
             process.StandardInput.Close();
             // Output is never read; drain it so a full pipe cannot stall the CLI.
             process.OutputDataReceived += static (_, _) => { };
@@ -132,10 +152,6 @@ public static class LoginHelper
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception or InvalidOperationException)
         {
             return false;
-        }
-        finally
-        {
-            RefreshGate.Release();
         }
     }
 

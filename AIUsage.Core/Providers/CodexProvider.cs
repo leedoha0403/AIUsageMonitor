@@ -146,7 +146,7 @@ public sealed class CodexSessionLogCollector : IUsageCollector
 
         foreach (var file in files)
         {
-            var line = await LastRateLimitLine(file.FullName, cancellationToken);
+            var line = await LastRateLimitLine(file, cancellationToken);
             if (line == null) continue;
             using var doc = JsonDocument.Parse(line);
             var root = doc.RootElement;
@@ -175,16 +175,69 @@ public sealed class CodexSessionLogCollector : IUsageCollector
         return CollectorResult.Fail(Loc.Msg("msg.noRateLimitEvent"));
     }
 
-    private static async Task<string?> LastRateLimitLine(string path, CancellationToken cancellationToken)
+    // The raw line found per file, valid while the file's length and write time are unchanged. Only the line is kept:
+    // the values derived from it depend on the current time and are computed again on every collection.
+    private static readonly object LineCacheLock = new();
+    private static readonly Dictionary<string, (long Length, long WrittenTicks, string? Line)> LineCache = new();
+    private const int FirstTailBytes = 256 * 1024;
+
+    private static async Task<string?> LastRateLimitLine(FileInfo file, CancellationToken cancellationToken)
     {
-        string? last = null;
-        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
-        using var reader = new StreamReader(stream);
-        while (await reader.ReadLineAsync(cancellationToken) is { } line)
+        var length = file.Length;
+        var written = file.LastWriteTimeUtc.Ticks;
+        lock (LineCacheLock)
         {
-            if (line.Contains("\"rate_limits\"", StringComparison.Ordinal) && line.Contains("\"used_percent\"", StringComparison.Ordinal)) last = line;
+            if (LineCache.TryGetValue(file.FullName, out var cached) && cached.Length == length && cached.WrittenTicks == written) return cached.Line;
         }
-        return last;
+
+        var line = await ReadLastRateLimitLine(file.FullName, cancellationToken);
+        lock (LineCacheLock)
+        {
+            if (LineCache.Count > 32) LineCache.Clear();
+            LineCache[file.FullName] = (length, written, line);
+        }
+        return line;
+    }
+
+    // Session logs grow for as long as a session lasts and the newest rate_limits event is near the end, so read
+    // from the end: a window that grows (x4) until a matching line is found, ending at the whole file at worst.
+    private static async Task<string?> ReadLastRateLimitLine(string path, CancellationToken cancellationToken)
+    {
+        await using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 4096, useAsync: true);
+        var length = stream.Length;
+        var window = Math.Min(length, FirstTailBytes);
+        while (true)
+        {
+            var start = length - window;
+            stream.Seek(start, SeekOrigin.Begin);
+            var buffer = new byte[window];
+            await stream.ReadExactlyAsync(buffer, cancellationToken);
+            // A window that starts mid-file begins inside a line: skip to the first line break (0x0A never occurs
+            // inside a multi-byte UTF-8 character). No break at all means the window is inside one long line.
+            var from = 0;
+            if (start > 0)
+            {
+                var lineBreak = Array.IndexOf(buffer, (byte)'\n');
+                from = lineBreak < 0 ? buffer.Length : lineBreak + 1;
+            }
+            var found = LastMatchingLine(System.Text.Encoding.UTF8.GetString(buffer, from, buffer.Length - from));
+            if (found != null) return found;
+            if (start == 0) return null;
+            window = Math.Min(length, window * 4);
+        }
+    }
+
+    private static string? LastMatchingLine(string text)
+    {
+        var end = text.Length;
+        while (end > 0)
+        {
+            var lineBreak = text.LastIndexOf('\n', end - 1);
+            var line = text.AsSpan(lineBreak + 1, end - lineBreak - 1).TrimEnd('\r');
+            if (line.IndexOf("\"rate_limits\"", StringComparison.Ordinal) >= 0 && line.IndexOf("\"used_percent\"", StringComparison.Ordinal) >= 0) return line.ToString();
+            end = lineBreak < 0 ? 0 : lineBreak;
+        }
+        return null;
     }
 
     private static (double? Percent, DateTimeOffset? ResetAt) Window(JsonElement limits, string name, DateTimeOffset eventAt)

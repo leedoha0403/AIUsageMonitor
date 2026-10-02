@@ -107,8 +107,12 @@ public class UsageFeatureViewModel : ObservableObject, IDisposable
         _countdownTimer.Interval = TimeSpan.FromSeconds(1);
         _countdownTimer.Tick += (_, _) =>
         {
-            RefreshDerived();
-            if (++_tick % 30 == 0) RefreshAnalytics();
+            if (!_presented) return;
+            var full = ++_tick % 30 == 0;
+            // The clock only moves the time-dependent properties; the full pass every 30 s is a safety net.
+            if (full) RefreshDerived();
+            else RefreshTime();
+            if (full) RefreshAnalytics();
         };
         _countdownTimer.Start();
         ConfigureRefreshTimer();
@@ -1011,29 +1015,86 @@ public class UsageFeatureViewModel : ObservableObject, IDisposable
         OnStatusSummaryChanged();
     }
 
+    private void RefreshTime()
+    {
+        foreach (var provider in Providers) provider.RefreshTime();
+        OnStatusSummaryChanged();
+    }
+
+    // ---- Presentation hints
+    // A shell that knows when nothing is on screen reports it here so the view model can skip work nobody sees.
+    // A shell that never reports (a Host widget) stays "presented", which is the behaviour before these hints existed.
+    private bool _presented = true;
+    private bool _detailPresented = true;
+    private bool _analyticsStale;
+    private bool _textViewsStale;
+
+    // Any surface showing usage (mini widget, chips, dashboard). Coming back brings everything up to date at once.
+    public void SetPresented(bool presented)
+    {
+        if (_presented == presented) return;
+        _presented = presented;
+        if (!presented) return;
+        RefreshDerived();
+        if (_analyticsStale) RefreshAnalytics();
+    }
+
+    // The detail view (history chart, history and diagnostics text).
+    public void SetDetailPresented(bool presented)
+    {
+        if (_detailPresented == presented) return;
+        _detailPresented = presented;
+        if (presented && _textViewsStale) RefreshTextViews();
+    }
+
     private void RefreshAnalytics()
     {
+        if (!_presented)
+        {
+            _analyticsStale = true;
+            return;
+        }
+        _analyticsStale = false;
         var history = _store.LoadHistory();
         foreach (var provider in Providers) provider.UpdateAnalytics(history);
     }
 
     protected void RefreshTextViews()
     {
+        // Velocity and forecast also feed the mini widget; everything else lives in the detail view only.
+        RefreshAnalytics();
+        if (!_detailPresented)
+        {
+            _textViewsStale = true;
+            return;
+        }
+        _textViewsStale = false;
         DiagnosticsText = BuildDiagnosticsText();
         HistoryText = BuildHistoryText();
-        RefreshAnalytics();
         BuildHistoryChart();
     }
 
     private void BuildHistoryChart()
     {
+        if (!_detailPresented)
+        {
+            _textViewsStale = true;
+            return;
+        }
         var history = _store.LoadHistory();
         var since = DateTimeOffset.Now - ChartRange - ChartRange;
 
+        // One pass over the history instead of one per account and series. Rows are appended in time order.
+        var byAccount = new Dictionary<string, List<UsageSnapshot>>();
+        foreach (var row in history)
+        {
+            if (row.Timestamp < since) continue;
+            if (!byAccount.TryGetValue(row.EffectiveKey, out var rows)) byAccount[row.EffectiveKey] = rows = [];
+            rows.Add(row);
+        }
+
         List<(DateTimeOffset, double)> PointsFor(ProviderViewModel p, Func<UsageSnapshot, int> value) =>
-            history.Where(x => x.EffectiveKey == p.AccountKey && x.Timestamp >= since)
-                .Select(x => (x.Timestamp, (double)value(x)))
-                .ToList();
+            byAccount.TryGetValue(p.AccountKey, out var rows) ? rows.Select(x => (x.Timestamp, (double)value(x))).ToList() : [];
 
         var series = new List<ChartSeries>();
         var areas = new List<ChartArea>();
@@ -1049,7 +1110,7 @@ public class UsageFeatureViewModel : ObservableObject, IDisposable
                 Name = p.Title,
                 Fill = WithOpacity(p.SeriesBrush, 0.45),
                 Points = PointsFor(p, x => x.WeeklyUsagePercent),
-                Boundaries = p.HasSessionWindow ? DetectSessionBoundaries(p.AccountKey, history, since) : []
+                Boundaries = p.HasSessionWindow && byAccount.TryGetValue(p.AccountKey, out var accountRows) ? DetectSessionBoundaries(accountRows) : []
             });
         }
         ChartSeries = series;
@@ -1060,9 +1121,9 @@ public class UsageFeatureViewModel : ObservableObject, IDisposable
     // began; each such point marks where one session's slice of the cumulative area ends and the next begins.
     private const int SessionResetDropThreshold = 5;
 
-    private static List<DateTimeOffset> DetectSessionBoundaries(string accountKey, IReadOnlyList<UsageSnapshot> history, DateTimeOffset since)
+    // rows: one account's snapshots in time order (the history is kept sorted, new rows are appended).
+    private static List<DateTimeOffset> DetectSessionBoundaries(IReadOnlyList<UsageSnapshot> rows)
     {
-        var rows = history.Where(x => x.EffectiveKey == accountKey && x.Timestamp >= since).OrderBy(x => x.Timestamp).ToList();
         var boundaries = new List<DateTimeOffset>();
         for (var i = 1; i < rows.Count; i++)
         {
@@ -1153,7 +1214,14 @@ public class UsageFeatureViewModel : ObservableObject, IDisposable
     private string BuildHistoryText()
     {
         var names = State.Providers.Values.ToDictionary(a => a.AccountKey, a => a.AccountName);
-        var rows = _store.LoadHistory().Where(x => x.Timestamp >= DateTimeOffset.Now - ChartRange).TakeLast(200).Reverse().ToList();
+        // Newest first, at most 200: walk the history from the end and stop once enough rows are found.
+        var history = _store.LoadHistory();
+        var cutoff = DateTimeOffset.Now - ChartRange;
+        var rows = new List<UsageSnapshot>(200);
+        for (var i = history.Count - 1; i >= 0 && rows.Count < 200; i--)
+        {
+            if (history[i].Timestamp >= cutoff) rows.Add(history[i]);
+        }
         var lines = new List<string>
         {
             Loc.T("mv.historyHeader"),

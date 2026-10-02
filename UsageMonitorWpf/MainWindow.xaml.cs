@@ -114,10 +114,15 @@ public partial class MainWindow : Window
             _notifyIcon.Visible = false;
             _notifyIcon.Dispose();
         };
+        // Nothing on screen means nothing needs its text, countdowns or charts refreshed (see SetPresented).
+        IsVisibleChanged += (_, _) => UpdatePresentation();
+        _widgetWindow.IsVisibleChanged += (_, _) => UpdatePresentation();
+        _chipsWindow.IsVisibleChanged += (_, _) => UpdatePresentation();
         _signInLaunchHandled = !App.StartedAtSignIn;
         ApplyWindowVersion();
         _signInLaunchHandled = true;
         ApplyChips();
+        UpdatePresentation();
         try
         {
             StartupService.RepairIfStale();
@@ -141,6 +146,12 @@ public partial class MainWindow : Window
             };
             resettle.Start();
         }
+    }
+
+    private void UpdatePresentation()
+    {
+        _viewModel.SetPresented(IsVisible || _widgetWindow.IsVisible || _chipsWindow.IsVisible);
+        _viewModel.SetDetailPresented(IsVisible);
     }
 
     private static System.Drawing.Icon LoadAppIcon(System.Drawing.Size size)
