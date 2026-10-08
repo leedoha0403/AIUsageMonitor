@@ -219,6 +219,21 @@ public sealed class ProviderViewModel : ObservableObject
     public string LoginButtonText => IsLoginPending ? Loc.T("ui.loginWaiting") : CliInstalled ? Loc.T("ui.login") : Loc.T("ui.installCli");
     public string LoginHint => IsLoginPending ? Loc.T("pv.hint.waiting") : CliInstalled ? Loc.T("pv.hint.login", DisplayName) : Loc.T("pv.hint.install", DisplayName);
 
+    // Desktop app linked to this provider's card (Claude / Codex only); the button is enabled only when it is installed.
+    private AIUsage.Presentation.Shell.AppLauncher? Launcher => _state.ProviderId switch
+    {
+        "claude" => AIUsage.Presentation.Shell.AppLauncher.Claude,
+        "codex" => AIUsage.Presentation.Shell.AppLauncher.Codex,
+        _ => null
+    };
+
+    public bool HasAppLauncher => Launcher != null;
+    public bool CanLaunchApp => Launcher?.IsInstalled == true;
+    public System.Windows.Media.ImageSource? LaunchAppIcon => Launcher?.Icon;
+    public System.Windows.Media.Brush? LaunchAppPlate => Launcher?.IconPlate;
+    public string LaunchAppText => _state.ProviderId == "codex" ? "Codex" : "Claude";
+    public System.Windows.Input.ICommand LaunchAppCommand => new RelayCommand(() => Launcher?.Launch());
+
     private void RaiseLoginText()
     {
         OnPropertyChanged(nameof(LoginButtonText));

@@ -175,6 +175,10 @@
                                                         <ColumnDefinition Width="18" />
                                                         <ColumnDefinition Width="220" />
                                                     </Grid.ColumnDefinitions>
+                                                    <!-- Launch icon at the top-right of the left column, next to the status panel; only when the app is installed. -->
+                                                    <Button Style="{StaticResource LaunchIconButton}" Command="{Binding LaunchAppCommand}" Content="{Binding LaunchAppIcon}" Background="{Binding LaunchAppPlate}"
+                                                            ToolTip="{Binding LaunchAppText}" Width="31" Height="31" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0" Panel.ZIndex="1"
+                                                            Visibility="{Binding CanLaunchApp, Converter={StaticResource BoolToVisibility}}" />
                                                     <StackPanel>
                                                         <StackPanel Orientation="Horizontal">
                                                             <TextBlock Text="{Binding PrimaryMark}" Foreground="{DynamicResource AccentBrush}" FontSize="20" Margin="0,0,6,0" />

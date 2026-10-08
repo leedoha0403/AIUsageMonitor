@@ -25,6 +25,7 @@
                             Background="{DynamicResource CanvasBrush}"
                             Padding="12"
                             Margin="0,0,0,9">
+                        <Grid>
                         <StackPanel>
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -33,7 +34,10 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel>
                                     <StackPanel Orientation="Horizontal">
-                                        <TextBlock Text="{Binding PrimaryMark}" Foreground="{DynamicResource AccentBrush}" Margin="0,0,4,0" />
+                                        <!-- Shown only when the provider's desktop app is installed. -->
+                                        <Button Style="{StaticResource LaunchIconButton}" Command="{Binding LaunchAppCommand}" Content="{Binding LaunchAppIcon}" Background="{Binding LaunchAppPlate}"
+                                                ToolTip="{Binding LaunchAppText}" Width="16" Height="16" Margin="0,0,6,0" VerticalAlignment="Center"
+                                                Visibility="{Binding CanLaunchApp, Converter={StaticResource BoolToVisibility}}" />
                                         <TextBlock Text="{Binding Title}" FontWeight="Bold" />
                                     </StackPanel>
                                     <!-- Time until the primary window (5H, or the Copilot month) resets, shown in every mode. -->
@@ -79,6 +83,7 @@
                                 <TextBlock Text="{Binding ForecastText}" Foreground="{DynamicResource MutedBrush}" FontSize="11" TextWrapping="Wrap" />
                             </StackPanel>
                         </StackPanel>
+                        </Grid>
                     </Border>
                 </DataTemplate>
             </ItemsControl.ItemTemplate>
@@ -96,7 +101,9 @@
                             </Grid.ColumnDefinitions>
                             <StackPanel>
                                 <StackPanel Orientation="Horizontal">
-                                    <TextBlock Text="{Binding PrimaryMark}" Foreground="{DynamicResource AccentBrush}" Margin="0,0,4,0" />
+                                    <Button Style="{StaticResource LaunchIconButton}" Command="{Binding LaunchAppCommand}" Content="{Binding LaunchAppIcon}" Background="{Binding LaunchAppPlate}"
+                                            ToolTip="{Binding LaunchAppText}" Width="16" Height="16" Margin="0,0,6,0" VerticalAlignment="Center"
+                                            Visibility="{Binding CanLaunchApp, Converter={StaticResource BoolToVisibility}}" />
                                     <TextBlock Text="{Binding Title}" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
                                 </StackPanel>
                                 <TextBlock Text="{Binding CountdownLine}" Foreground="{DynamicResource MutedBrush}" FontSize="11" Margin="0,1,0,0" TextTrimming="CharacterEllipsis"
